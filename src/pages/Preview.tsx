@@ -2,12 +2,15 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { storage } from "@/utils/storage";
 import { DaylogEvent } from "@/types";
+import { toast } from "@/hooks/use-toast";
 
 const Preview = () => {
   const [searchParams] = useSearchParams();
@@ -18,18 +21,23 @@ const Preview = () => {
   const [photos, setPhotos] = useState<string[]>([]);
   const [dumpTitle, setDumpTitle] = useState("");
   const [dumpMemo, setDumpMemo] = useState("");
+  const [showTitle, setShowTitle] = useState(false);
+  const [showMemo, setShowMemo] = useState(false);
 
   useEffect(() => {
     if (eventId) {
       const foundEvent = storage.getScheduleById(eventId);
       if (foundEvent) {
         setEvent(foundEvent);
-        setDumpTitle(`🌅 ${foundEvent.title}의 하루`);
-        
         const eventPhotos = storage.getPhotos(eventId);
         setPhotos(eventPhotos);
         
         if (eventPhotos.length === 0) {
+          toast({
+            title: "사진이 없습니다",
+            description: "먼저 사진을 업로드해주세요.",
+            variant: "destructive"
+          });
           navigate(`/photos?eventId=${eventId}`);
         }
       } else {
@@ -39,20 +47,27 @@ const Preview = () => {
   }, [eventId, navigate]);
 
   const proceedToStyle = () => {
-    if (!dumpTitle.trim()) {
+    if (photos.length === 0) {
+      toast({
+        title: "사진을 업로드해주세요",
+        description: "최소 1장의 사진이 필요합니다.",
+        variant: "destructive"
+      });
       return;
     }
-    
-    // Save title and memo temporarily (in a real app, this would be in a proper state management)
-    sessionStorage.setItem('dumpTitle', dumpTitle);
-    sessionStorage.setItem('dumpMemo', dumpMemo);
-    
+
+    // Save temporary data for style page
+    sessionStorage.setItem('dumpTitle', showTitle ? dumpTitle : '');
+    sessionStorage.setItem('dumpMemo', showMemo ? dumpMemo : '');
+    sessionStorage.setItem('showTitle', showTitle.toString());
+    sessionStorage.setItem('showMemo', showMemo.toString());
+
     navigate(`/style?eventId=${eventId}`);
   };
 
   if (!event) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-lavender/20 to-mint/20 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-background via-peach/20 to-sunset/20 flex items-center justify-center">
         <div className="text-center">
           <div className="text-4xl mb-4">⏳</div>
           <p className="text-muted-foreground">일정 정보를 불러오는 중...</p>
@@ -62,7 +77,7 @@ const Preview = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-lavender/20 to-mint/20">
+    <div className="min-h-screen bg-gradient-to-br from-background via-peach/20 to-sunset/20">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -72,19 +87,19 @@ const Preview = () => {
             </h1>
           </Link>
           <h2 className="text-3xl font-bold text-foreground mb-4">
-            👀 미리보기
+            ✨ 포토 덤프 미리보기
           </h2>
           <p className="text-muted-foreground text-lg">
-            포토 덤프의 제목과 메모를 입력하고 내용을 확인해보세요
+            포토 덤프의 내용을 확인하고 제목과 메모를 설정해보세요
           </p>
         </div>
 
         <div className="max-w-4xl mx-auto space-y-8">
-          {/* Settings */}
+          {/* Event Info */}
           <Card className="glass-effect border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span className="text-2xl font-bold">덤프 설정</span>
+                <span className="text-2xl font-bold">{event.title}</span>
                 <Link to={`/photos?eventId=${eventId}`}>
                   <Button variant="ghost" size="sm">
                     <ArrowLeft className="h-4 w-4 mr-2" />
@@ -93,96 +108,146 @@ const Preview = () => {
                 </Link>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  덤프 제목 *
-                </label>
-                <Input
-                  placeholder="예: 🌇 오늘의 정리"
-                  value={dumpTitle}
-                  onChange={(e) => setDumpTitle(e.target.value)}
-                  className="rounded-xl border-2 focus:border-peach"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  메모 (선택)
-                </label>
-                <Textarea
-                  placeholder="이 포토 덤프에 대한 간단한 설명이나 감상을 적어보세요"
-                  value={dumpMemo}
-                  onChange={(e) => setDumpMemo(e.target.value)}
-                  className="rounded-xl border-2 focus:border-peach min-h-[100px]"
-                />
+            <CardContent>
+              <div className="space-y-2 text-muted-foreground">
+                <p>📅 {new Date(event.date).toLocaleDateString('ko-KR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  weekday: 'long'
+                })}</p>
+                {(event.startTime || event.endTime) && (
+                  <p>⏰ {event.startTime} {event.startTime && event.endTime && '- '} {event.endTime}</p>
+                )}
+                {event.memo && (
+                  <p>📝 {event.memo}</p>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Preview */}
+          {/* Photo Preview */}
           <Card className="glass-effect border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl font-bold">미리보기</CardTitle>
+              <CardTitle className="text-xl">업로드된 사진들 ({photos.length}장)</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Dump Preview */}
-              <div className="bg-white rounded-2xl p-8 shadow-inner border">
-                {/* Title */}
-                <h2 className="text-3xl font-bold text-center mb-2 text-gray-800">
-                  {dumpTitle || "덤프 제목을 입력하세요"}
-                </h2>
-                
-                {/* Event Info */}
-                <div className="text-center text-gray-600 mb-6">
-                  <p className="text-lg">{event.title}</p>
-                  <p>{new Date(event.date).toLocaleDateString('ko-KR', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    weekday: 'long'
-                  })}</p>
-                  {(event.startTime || event.endTime) && (
-                    <p>{event.startTime} {event.startTime && event.endTime && '- '} {event.endTime}</p>
-                  )}
-                </div>
-
-                {/* Photos Grid */}
-                {photos.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                    {photos.map((photo, index) => (
-                      <div key={index} className="aspect-square rounded-lg overflow-hidden shadow-md">
-                        <img
-                          src={photo}
-                          alt={`Photo ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ))}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {photos.map((photo, index) => (
+                  <div key={index} className="aspect-square rounded-xl overflow-hidden bg-muted shadow-md">
+                    <img
+                      src={photo}
+                      alt={`Photo ${index + 1}`}
+                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                    />
                   </div>
-                )}
-
-                {/* Memo */}
-                {dumpMemo && (
-                  <div className="border-t pt-6 text-gray-700">
-                    <p className="text-center italic">{dumpMemo}</p>
-                  </div>
-                )}
-
-                {/* Footer */}
-                <div className="text-center text-sm text-gray-500 mt-6">
-                  Created with Daylog ✨
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
+          {/* Optional Content Settings */}
+          <Card className="glass-effect border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl">포토 덤프 설정</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Title Option */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="show-title"
+                    checked={showTitle}
+                    onCheckedChange={setShowTitle}
+                  />
+                  <Label htmlFor="show-title" className="text-base font-medium">
+                    제목 추가하기
+                  </Label>
+                </div>
+                
+                {showTitle && (
+                  <div className="space-y-2">
+                    <Label htmlFor="dump-title">포토 덤프 제목</Label>
+                    <Input
+                      id="dump-title"
+                      value={dumpTitle}
+                      onChange={(e) => setDumpTitle(e.target.value)}
+                      placeholder="예: 🌇 오늘의 하루, ☕ 카페 투어..."
+                      className="text-lg"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Memo Option */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="show-memo"
+                    checked={showMemo}
+                    onCheckedChange={setShowMemo}
+                  />
+                  <Label htmlFor="show-memo" className="text-base font-medium">
+                    메모 추가하기
+                  </Label>
+                </div>
+                
+                {showMemo && (
+                  <div className="space-y-2">
+                    <Label htmlFor="dump-memo">포토 덤프 메모</Label>
+                    <Textarea
+                      id="dump-memo"
+                      value={dumpMemo}
+                      onChange={(e) => setDumpMemo(e.target.value)}
+                      placeholder="이 순간에 대한 감상이나 메모를 남겨보세요..."
+                      rows={4}
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Preview Section */}
+          <Card className="glass-effect border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl">미리보기</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-white rounded-2xl p-6 shadow-inner border">
+                {showTitle && dumpTitle && (
+                  <h3 className="text-2xl font-bold text-center mb-6 text-gray-800">
+                    {dumpTitle}
+                  </h3>
+                )}
+                
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {photos.slice(0, 4).map((photo, index) => (
+                    <div key={index} className="aspect-square rounded-lg overflow-hidden">
+                      <img
+                        src={photo}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {showMemo && dumpMemo && (
+                  <p className="text-center text-gray-600 italic border-t pt-4">
+                    "{dumpMemo}"
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Button */}
           <div className="flex justify-center">
             <Button
               onClick={proceedToStyle}
               size="lg"
-              disabled={!dumpTitle.trim()}
+              disabled={photos.length === 0}
               className="gradient-peach text-white border-0 px-8 py-4 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
             >
               <ArrowRight className="mr-2 h-5 w-5" />

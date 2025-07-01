@@ -14,8 +14,10 @@ export interface PhotoDump {
   eventId: string;
   title: string;
   memo?: string;
+  showTitle?: boolean;
+  showMemo?: boolean;
   style: {
-    layout: 'timeline' | 'gallery' | 'polaroid';
+    layout: 'grid' | 'masonry' | 'collage' | 'minimal';
     backgroundColor: string;
     fontFamily: string;
   };

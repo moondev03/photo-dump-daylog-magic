@@ -28,7 +28,6 @@ const Result = () => {
         const eventPhotos = storage.getPhotos(eventId);
         setPhotos(eventPhotos);
       } else {
-        // Redirect back if data is missing
         window.location.href = '/calendar';
       }
     }
@@ -38,7 +37,6 @@ const Result = () => {
     if (!dumpRef.current) return;
 
     try {
-      // This is a simplified version - in a real app you would use html2canvas or similar
       toast({
         title: "다운로드 기능 준비 중",
         description: "실제 서비스에서는 PNG 파일로 다운로드됩니다.",
@@ -68,6 +66,46 @@ const Result = () => {
     });
   };
 
+  const renderPhotos = () => {
+    if (!dump) return null;
+
+    const layoutClass = {
+      'grid': 'grid grid-cols-2 md:grid-cols-3 gap-3',
+      'masonry': 'columns-2 md:columns-3 gap-3 space-y-3',
+      'collage': 'grid grid-cols-2 md:grid-cols-4 gap-2',
+      'minimal': 'space-y-6'
+    }[dump.style.layout] || 'grid grid-cols-2 md:grid-cols-3 gap-3';
+
+    return (
+      <div className={layoutClass}>
+        {photos.map((photo, index) => {
+          const isFirstInCollage = dump.style.layout === 'collage' && index === 0;
+          const aspectClass = {
+            'grid': 'aspect-square',
+            'masonry': index % 3 === 0 ? 'aspect-[3/4]' : index % 3 === 1 ? 'aspect-square' : 'aspect-[4/3]',
+            'collage': isFirstInCollage ? 'col-span-2 aspect-[2/1]' : 'aspect-square',
+            'minimal': 'aspect-[4/3]'
+          }[dump.style.layout] || 'aspect-square';
+
+          return (
+            <div 
+              key={index} 
+              className={`${aspectClass} rounded-2xl overflow-hidden shadow-lg ${
+                dump.style.layout === 'masonry' ? 'break-inside-avoid' : ''
+              }`}
+            >
+              <img
+                src={photo}
+                alt={`Memory ${index + 1}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderPhotoDump = () => {
     if (!event || !dump || photos.length === 0) return null;
 
@@ -79,80 +117,29 @@ const Result = () => {
 
     return (
       <div className="w-full rounded-2xl p-8 shadow-lg" style={containerStyle} ref={dumpRef}>
-        {/* Title */}
-        <h1 className="text-4xl md:text-5xl font-bold text-center mb-4 text-gray-800">
-          {dump.title}
-        </h1>
-        
-        {/* Event Info */}
-        <div className="text-center text-gray-600 mb-8">
-          <p className="text-xl mb-2">{event.title}</p>
-          <p className="text-lg">{new Date(event.date).toLocaleDateString('ko-KR', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            weekday: 'long'
-          })}</p>
-          {(event.startTime || event.endTime) && (
-            <p className="text-md">{event.startTime} {event.startTime && event.endTime && '- '} {event.endTime}</p>
-          )}
-        </div>
+        {/* Title - only show if enabled and exists */}
+        {dump.showTitle && dump.title && (
+          <h1 className="text-3xl md:text-4xl font-bold text-center mb-8 text-gray-800">
+            {dump.title}
+          </h1>
+        )}
 
         {/* Photos */}
-        <div className={`mb-8 ${
-          dump.style.layout === 'timeline' 
-            ? 'space-y-6' 
-            : dump.style.layout === 'gallery'
-              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-              : 'grid grid-cols-1 md:grid-cols-2 gap-8'
-        }`}>
-          {photos.map((photo, index) => (
-            <div 
-              key={index} 
-              className={`${
-                dump.style.layout === 'timeline' 
-                  ? 'aspect-video rounded-2xl overflow-hidden shadow-lg' 
-                  : dump.style.layout === 'gallery'
-                    ? 'aspect-square rounded-2xl overflow-hidden shadow-lg'
-                    : 'bg-white p-4 rounded-2xl shadow-lg'
-              }`}
-            >
-              {dump.style.layout === 'polaroid' ? (
-                <div className="space-y-3">
-                  <div className="aspect-square rounded-lg overflow-hidden">
-                    <img
-                      src={photo}
-                      alt={`Memory ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="text-center text-gray-700 font-handwriting">
-                    {event.title} #{index + 1}
-                  </div>
-                </div>
-              ) : (
-                <img
-                  src={photo}
-                  alt={`Memory ${index + 1}`}
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
-          ))}
+        <div className="mb-8">
+          {renderPhotos()}
         </div>
 
-        {/* Memo */}
-        {dump.memo && (
-          <div className="border-t border-gray-300 pt-8 text-gray-700">
+        {/* Memo - only show if enabled and exists */}
+        {dump.showMemo && dump.memo && (
+          <div className="border-t border-gray-200 pt-6 text-gray-700">
             <p className="text-center text-lg italic leading-relaxed">
               "{dump.memo}"
             </p>
           </div>
         )}
 
-        {/* Footer */}
-        <div className="text-center text-gray-500 mt-12 text-sm">
-          <p>Created with ✨ Daylog</p>
+        {/* Minimal footer */}
+        <div className="text-center text-gray-400 mt-8 text-xs">
           <p>{new Date(dump.createdAt).toLocaleDateString('ko-KR')}</p>
         </div>
       </div>
@@ -184,7 +171,7 @@ const Result = () => {
             ✅ 포토 덤프 완성!
           </h2>
           <p className="text-muted-foreground text-lg">
-            당신의 소중한 하루가 아름다운 포토 덤프로 완성되었습니다
+            당신의 소중한 순간이 아름다운 포토 덤프로 완성되었습니다
           </p>
         </div>
 
@@ -236,12 +223,12 @@ const Result = () => {
           <Card className="glass-effect border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="text-center text-2xl font-bold text-peach">
-                🎉 축하합니다!
+                🎉 완성!
               </CardTitle>
             </CardHeader>
             <CardContent className="text-center space-y-4">
               <p className="text-lg text-muted-foreground">
-                "{dump.title}"이(가) 성공적으로 생성되었습니다.
+                포토 덤프가 성공적으로 생성되었습니다.
               </p>
               <p className="text-sm text-muted-foreground">
                 더 많은 일정을 등록하고 다양한 포토 덤프를 만들어보세요! ✨
