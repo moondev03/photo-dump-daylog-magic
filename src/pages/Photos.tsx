@@ -12,13 +12,16 @@ const Photos = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const eventId = searchParams.get('eventId');
+  const selectedDate = searchParams.get('date');
   
   const [event, setEvent] = useState<DaylogEvent | null>(null);
+  const [dateEvents, setDateEvents] = useState<DaylogEvent[]>([]);
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
     if (eventId) {
+      // Single event mode
       const foundEvent = storage.getScheduleById(eventId);
       if (foundEvent) {
         setEvent(foundEvent);
@@ -31,19 +34,53 @@ const Photos = () => {
         });
         navigate('/calendar');
       }
+    } else if (selectedDate) {
+      // Date-based mode
+      const schedules = storage.getSchedules();
+      const events = schedules.filter(schedule => schedule.date === selectedDate);
+      if (events.length > 0) {
+        setDateEvents(events);
+        loadExistingPhotosForDate(selectedDate);
+      } else {
+        toast({
+          title: "해당 날짜에 일정이 없습니다",
+          description: "일정을 먼저 등록해주세요.",
+          variant: "destructive"
+        });
+        navigate('/calendar');
+      }
     }
-  }, [eventId, navigate]);
+  }, [eventId, selectedDate, navigate]);
 
   const loadExistingPhotos = (eventId: string) => {
     const existingPhotoUrls = storage.getPhotos(eventId);
     if (existingPhotoUrls.length > 0) {
       const existingPhotos = existingPhotoUrls.map((url, index) => ({
         id: `existing-${index}`,
-        file: new File([], `photo-${index}.jpg`), // Placeholder file
+        file: new File([], `photo-${index}.jpg`),
         preview: url
       }));
       setPhotos(existingPhotos);
     }
+  };
+
+  const loadExistingPhotosForDate = (date: string) => {
+    const schedules = storage.getSchedules();
+    const dayEvents = schedules.filter(schedule => schedule.date === date);
+    const allPhotos: UploadedPhoto[] = [];
+    
+    dayEvents.forEach((event, eventIndex) => {
+      const eventPhotos = storage.getPhotos(event.id);
+      eventPhotos.forEach((url, photoIndex) => {
+        allPhotos.push({
+          id: `date-${eventIndex}-${photoIndex}`,
+          file: new File([], `photo-${eventIndex}-${photoIndex}.jpg`),
+          preview: url
+        });
+      });
+    });
+    
+    setPhotos(allPhotos);
   };
 
   const handleFileSelect = (files: FileList | File[]) => {
@@ -58,32 +95,78 @@ const Photos = () => {
       return;
     }
 
+    if (photos.length + fileArray.length > 10) {
+      toast({
+        title: "사진 업로드 제한",
+        description: "최대 10장까지만 업로드할 수 있습니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     let processedCount = 0;
     const newPhotos: UploadedPhoto[] = [];
 
     fileArray.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const photo: UploadedPhoto = {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          file,
-          preview: e.target?.result as string
-        };
-        newPhotos.push(photo);
-        processedCount++;
-        
-        if (processedCount === fileArray.length) {
-          setPhotos(prev => [...prev, ...newPhotos].slice(0, 10)); // Max 10 photos
-          
-          if (newPhotos.length > 0) {
+      // 파일 크기 제한 (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "파일 크기 제한",
+          description: `${file.name}은 5MB를 초과합니다.`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const photo: UploadedPhoto = {
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+              file,
+              preview: e.target?.result as string
+            };
+            newPhotos.push(photo);
+            processedCount++;
+            
+            if (processedCount === fileArray.length) {
+              setPhotos(prev => [...prev, ...newPhotos]);
+              
+              if (newPhotos.length > 0) {
+                toast({
+                  title: "사진이 업로드되었습니다",
+                  description: `${newPhotos.length}장의 사진이 추가되었습니다.`
+                });
+              }
+            }
+          } catch (error) {
+            console.error('Image processing error:', error);
             toast({
-              title: "사진이 업로드되었습니다",
-              description: `${newPhotos.length}장의 사진이 추가되었습니다.`
+              title: "이미지 처리 오류",
+              description: "이미지를 처리하는 중 오류가 발생했습니다.",
+              variant: "destructive"
             });
           }
-        }
-      };
-      reader.readAsDataURL(file);
+        };
+        
+        reader.onerror = () => {
+          toast({
+            title: "파일 읽기 오류",
+            description: `${file.name}을 읽을 수 없습니다.`,
+            variant: "destructive"
+          });
+        };
+        
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('File reader error:', error);
+        toast({
+          title: "파일 처리 오류",
+          description: "파일을 처리하는 중 오류가 발생했습니다.",
+          variant: "destructive"
+        });
+      }
     });
   };
 
@@ -115,19 +198,48 @@ const Photos = () => {
       return;
     }
 
-    // Save photo URLs to storage
-    const photoUrls = photos.map(photo => photo.preview);
-    storage.savePhotos(eventId!, photoUrls);
+    try {
+      // Save photo URLs to storage
+      const photoUrls = photos.map(photo => photo.preview);
+      
+      if (eventId) {
+        storage.savePhotos(eventId, photoUrls);
+        navigate(`/preview?eventId=${eventId}`);
+      } else if (selectedDate) {
+        // For date-based mode, save to the first event or create a temporary event
+        const tempEventId = `date-${selectedDate}-${Date.now()}`;
+        storage.savePhotos(tempEventId, photoUrls);
+        navigate(`/preview?date=${selectedDate}&tempEventId=${tempEventId}`);
+      }
 
-    toast({
-      title: "사진이 저장되었습니다",
-      description: "미리보기 페이지로 이동합니다."
-    });
-
-    navigate(`/preview?eventId=${eventId}`);
+      toast({
+        title: "사진이 저장되었습니다",
+        description: "미리보기 페이지로 이동합니다."
+      });
+    } catch (error) {
+      console.error('Save error:', error);
+      toast({
+        title: "저장 실패",
+        description: "사진을 저장하는 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
   };
 
-  if (!event) {
+  const getDisplayTitle = () => {
+    if (event) return event.title;
+    if (selectedDate && dateEvents.length > 0) {
+      return `${new Date(selectedDate).toLocaleDateString('ko-KR')}의 추억`;
+    }
+    return "포토 덤프";
+  };
+
+  const getDisplayDate = () => {
+    if (event) return event.date;
+    return selectedDate || "";
+  };
+
+  if (!event && !selectedDate) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-mint/20 to-peach/20 flex items-center justify-center">
         <div className="text-center">
@@ -152,7 +264,7 @@ const Photos = () => {
             📸 사진 업로드
           </h2>
           <p className="text-muted-foreground text-lg">
-            {event?.title}의 추억을 담은 사진들을 업로드해보세요
+            {getDisplayTitle()}의 추억을 담은 사진들을 업로드해보세요
           </p>
         </div>
 
@@ -161,7 +273,7 @@ const Photos = () => {
           <Card className="glass-effect border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span className="text-2xl font-bold">{event.title}</span>
+                <span className="text-2xl font-bold">{getDisplayTitle()}</span>
                 <Link to="/calendar">
                   <Button variant="ghost" size="sm">
                     <ArrowLeft className="h-4 w-4 mr-2" />
@@ -172,17 +284,20 @@ const Photos = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2 text-muted-foreground">
-                <p>📅 {new Date(event.date).toLocaleDateString('ko-KR', {
+                <p>📅 {new Date(getDisplayDate()).toLocaleDateString('ko-KR', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
                   weekday: 'long'
                 })}</p>
-                {(event.startTime || event.endTime) && (
+                {event && (event.startTime || event.endTime) && (
                   <p>⏰ {event.startTime} {event.startTime && event.endTime && '- '} {event.endTime}</p>
                 )}
-                {event.memo && (
+                {event && event.memo && (
                   <p>📝 {event.memo}</p>
+                )}
+                {selectedDate && dateEvents.length > 0 && (
+                  <p>📋 {dateEvents.length}개의 일정</p>
                 )}
               </div>
             </CardContent>
@@ -210,7 +325,7 @@ const Photos = () => {
                   사진을 드래그하거나 클릭해서 업로드하세요
                 </h3>
                 <p className="text-muted-foreground mb-6">
-                  최대 10장까지 업로드 가능합니다 (JPG, PNG)
+                  최대 10장까지 업로드 가능합니다 (JPG, PNG, 최대 5MB)
                 </p>
                 <input
                   type="file"

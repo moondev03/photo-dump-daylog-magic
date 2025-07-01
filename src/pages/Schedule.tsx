@@ -8,7 +8,13 @@ import { toast } from "@/hooks/use-toast";
 import { Link, useNavigate } from "react-router-dom";
 import { CalendarPlus, Trash2, Calendar, Upload, X } from "lucide-react";
 import { storage } from "@/utils/storage";
-import { DaylogEvent, UploadedPhoto } from "@/types";
+import { DaylogEvent } from "@/types";
+
+interface UploadedPhoto {
+  id: string;
+  file: File;
+  preview: string;
+}
 
 interface ScheduleForm {
   title: string;
@@ -57,36 +63,90 @@ const Schedule = () => {
 
   const handleFileSelect = (scheduleIndex: number, files: FileList | File[]) => {
     const fileArray = Array.from(files);
-    const newPhotos: UploadedPhoto[] = [];
-
-    fileArray.forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const photo: UploadedPhoto = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            file,
-            preview: e.target?.result as string
-          };
-          newPhotos.push(photo);
-          
-          if (newPhotos.length === fileArray.filter(f => f.type.startsWith('image/')).length) {
-            const currentPhotos = schedules[scheduleIndex].photos;
-            const updatedPhotos = [...currentPhotos, ...newPhotos].slice(0, 10); // Max 10 photos
-            updateSchedule(scheduleIndex, 'photos', updatedPhotos);
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-
-    if (fileArray.length === 0 || !fileArray.some(f => f.type.startsWith('image/'))) {
+    const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
+    
+    if (imageFiles.length === 0) {
       toast({
         title: "이미지 파일을 선택해주세요",
         description: "JPG, PNG 형식의 이미지만 업로드 가능합니다.",
         variant: "destructive"
       });
+      return;
     }
+
+    const currentPhotos = schedules[scheduleIndex].photos;
+    if (currentPhotos.length + imageFiles.length > 10) {
+      toast({
+        title: "사진 업로드 제한",
+        description: "최대 10장까지만 업로드할 수 있습니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newPhotos: UploadedPhoto[] = [];
+    let processedCount = 0;
+
+    imageFiles.forEach(file => {
+      // 파일 크기 제한 (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "파일 크기 제한",
+          description: `${file.name}은 5MB를 초과합니다.`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const photo: UploadedPhoto = {
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+              file,
+              preview: e.target?.result as string
+            };
+            newPhotos.push(photo);
+            processedCount++;
+            
+            if (processedCount === imageFiles.length) {
+              const updatedPhotos = [...currentPhotos, ...newPhotos];
+              updateSchedule(scheduleIndex, 'photos', updatedPhotos);
+              
+              toast({
+                title: "사진이 업로드되었습니다",
+                description: `${newPhotos.length}장의 사진이 추가되었습니다.`
+              });
+            }
+          } catch (error) {
+            console.error('Image processing error:', error);
+            toast({
+              title: "이미지 처리 오류",
+              description: "이미지를 처리하는 중 오류가 발생했습니다.",
+              variant: "destructive"
+            });
+          }
+        };
+        
+        reader.onerror = () => {
+          toast({
+            title: "파일 읽기 오류",
+            description: `${file.name}을 읽을 수 없습니다.`,
+            variant: "destructive"
+          });
+        };
+        
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('File reader error:', error);
+        toast({
+          title: "파일 처리 오류",
+          description: "파일을 처리하는 중 오류가 발생했습니다.",
+          variant: "destructive"
+        });
+      }
+    });
   };
 
   const removePhoto = (scheduleIndex: number, photoId: string) => {
@@ -107,45 +167,54 @@ const Schedule = () => {
       return;
     }
 
-    validSchedules.forEach(schedule => {
-      const eventId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-      const event: DaylogEvent = {
-        id: eventId,
-        title: schedule.title,
-        date: schedule.date,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime,
-        memo: schedule.memo,
-        photos: schedule.photos.map(p => p.preview)
-      };
-      
-      storage.addSchedule(event);
-      
-      // Save photos separately
-      if (schedule.photos.length > 0) {
-        const photoUrls = schedule.photos.map(photo => photo.preview);
-        storage.savePhotos(eventId, photoUrls);
-      }
-    });
+    try {
+      validSchedules.forEach(schedule => {
+        const eventId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+        const event: DaylogEvent = {
+          id: eventId,
+          title: schedule.title,
+          date: schedule.date,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          memo: schedule.memo,
+          photos: schedule.photos.map(p => p.preview)
+        };
+        
+        storage.addSchedule(event);
+        
+        // Save photos separately
+        if (schedule.photos.length > 0) {
+          const photoUrls = schedule.photos.map(photo => photo.preview);
+          storage.savePhotos(eventId, photoUrls);
+        }
+      });
 
-    toast({
-      title: "일정이 저장되었습니다! ✨",
-      description: `${validSchedules.length}개의 일정이 저장되었습니다.`
-    });
+      toast({
+        title: "일정이 저장되었습니다! ✨",
+        description: `${validSchedules.length}개의 일정이 저장되었습니다.`
+      });
 
-    // Clear form
-    setSchedules([{
-      title: "",
-      date: "",
-      startTime: "",
-      endTime: "",
-      memo: "",
-      photos: []
-    }]);
+      // Clear form
+      setSchedules([{
+        title: "",
+        date: "",
+        startTime: "",
+        endTime: "",
+        memo: "",
+        photos: []
+      }]);
+    } catch (error) {
+      console.error('Save error:', error);
+      toast({
+        title: "저장 실패",
+        description: "일정을 저장하는 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-peach/20 to-sunset/20">
+    <div className="min-h-screen bg-white">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -165,9 +234,9 @@ const Schedule = () => {
         {/* Schedule Forms */}
         <div className="max-w-4xl mx-auto space-y-6">
           {schedules.map((schedule, index) => (
-            <Card key={index} className="glass-effect border-0 shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-xl font-semibold">
+            <Card key={index} className="shadow-lg border-2 border-peach/20">
+              <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-peach/10 to-sunset/10">
+                <CardTitle className="text-xl font-semibold text-peach">
                   일정 {index + 1}
                 </CardTitle>
                 {schedules.length > 1 && (
@@ -181,7 +250,7 @@ const Schedule = () => {
                   </Button>
                 )}
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 p-6">
                 {/* Basic Info */}
                 <div className="space-y-4">
                   {/* Title */}
@@ -257,11 +326,11 @@ const Schedule = () => {
                   </label>
                   
                   {/* Upload Zone */}
-                  <div className="border-2 border-dashed border-muted-foreground/30 rounded-xl p-8 text-center hover:border-peach hover:bg-peach/5 transition-all duration-300">
-                    <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                    <h4 className="text-lg font-medium mb-2">사진 업로드</h4>
+                  <div className="border-2 border-dashed border-peach/30 rounded-xl p-8 text-center hover:border-peach hover:bg-peach/5 transition-all duration-300">
+                    <Upload className="h-12 w-12 text-peach mx-auto mb-3" />
+                    <h4 className="text-lg font-medium mb-2 text-peach">사진 업로드</h4>
                     <p className="text-muted-foreground mb-4">
-                      최대 10장까지 업로드 가능 (JPG, PNG)
+                      최대 10장까지 업로드 가능 (JPG, PNG, 최대 5MB)
                     </p>
                     <input
                       type="file"
@@ -289,7 +358,7 @@ const Schedule = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {schedule.photos.map((photo, photoIndex) => (
                           <div key={photo.id} className="relative group">
-                            <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                            <div className="aspect-square rounded-lg overflow-hidden bg-muted border-2 border-peach/20">
                               <img
                                 src={photo.preview}
                                 alt={`Upload ${photoIndex + 1}`}
@@ -305,7 +374,7 @@ const Schedule = () => {
                             >
                               <X className="h-3 w-3" />
                             </Button>
-                            <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1 py-0.5 rounded">
+                            <div className="absolute bottom-1 left-1 bg-peach text-white text-xs px-1 py-0.5 rounded">
                               {photoIndex + 1}
                             </div>
                           </div>

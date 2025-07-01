@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { Calendar as CalendarIcon, ArrowLeft, ArrowRight, Trash2, Image } from "lucide-react";
+import { Calendar as CalendarIcon, ArrowLeft, ArrowRight, Trash2, Camera } from "lucide-react";
 import { storage } from "@/utils/storage";
 import { DaylogEvent } from "@/types";
 
@@ -87,6 +87,16 @@ const Calendar = () => {
     setSelectedSchedules(updatedSelected);
   };
 
+  const getPhotosForDate = (dateStr: string) => {
+    const daySchedules = schedules.filter(schedule => schedule.date === dateStr);
+    const allPhotos: string[] = [];
+    daySchedules.forEach(schedule => {
+      const photos = storage.getPhotos(schedule.id);
+      allPhotos.push(...photos);
+    });
+    return allPhotos;
+  };
+
   const monthNames = [
     "1월", "2월", "3월", "4월", "5월", "6월",
     "7월", "8월", "9월", "10월", "11월", "12월"
@@ -101,7 +111,7 @@ const Calendar = () => {
         <div className="text-center mb-12">
           <Link to="/" className="inline-block mb-6">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-peach to-sunset bg-clip-text text-transparent">
-              Daylog
+              마침 - MaChim
             </h1>
           </Link>
           <h2 className="text-3xl font-bold text-foreground mb-4">
@@ -234,19 +244,22 @@ const Calendar = () => {
                                   {schedule.memo}
                                 </p>
                               )}
-                              
-                              <Link to={`/photos?eventId=${schedule.id}`}>
-                                <Button 
-                                  size="sm" 
-                                  className="gradient-peach text-white border-0 rounded-xl w-full"
-                                >
-                                  <Image className="mr-2 h-4 w-4" />
-                                  사진 업로드 및 덤프 만들기
-                                </Button>
-                              </Link>
                             </CardContent>
                           </Card>
                         ))}
+                        
+                        {/* 날짜별 포토 덤프 생성 버튼 */}
+                        {getPhotosForDate(selectedDate).length > 0 && (
+                          <Link to={`/photos?date=${selectedDate}`}>
+                            <Button 
+                              size="lg" 
+                              className="gradient-peach text-white border-0 rounded-xl w-full mt-4"
+                            >
+                              <Camera className="mr-2 h-5 w-5" />
+                              📸 이 날의 포토 덤프 만들기
+                            </Button>
+                          </Link>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -268,7 +281,7 @@ const Calendar = () => {
               <CardHeader>
                 <CardTitle className="text-xl">빠른 액션</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
                 <Link to="/schedule">
                   <Button variant="outline" className="w-full border-2 border-peach text-peach hover:bg-peach hover:text-white">
                     ➕ 새 일정 등록
