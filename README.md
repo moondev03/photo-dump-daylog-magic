@@ -1,73 +1,141 @@
-# Welcome to your Lovable project
+# 마침 (MaChim) - 포토 덤프 다이어리
 
-## Project info
+일상의 마지막을 아름답게 마무리하는 포토 덤프 다이어리 서비스
 
-**URL**: https://lovable.dev/projects/0a635c76-ac85-451d-927f-55e3648e85d5
+## 📌 프로젝트 소개
 
-## How can I edit this code?
+마침(MaChim)은 일상의 순간들을 포토 덤프로 기록하고 공유할 수 있는 웹 서비스입니다. 
+하루의 일정과 사진들을 모아 아름다운 포토 덤프로 만들어 보세요.
 
-There are several ways of editing your application.
+### 주요 기능
 
-**Use Lovable**
+- 📅 캘린더 기반 일정 관리
+- 📸 일정별 사진 업로드 및 관리
+- 🎨 다양한 그리드 레이아웃의 포토 덤프 생성
+- 💾 포토 덤프 저장 및 공유
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0a635c76-ac85-451d-927f-55e3648e85d5) and start prompting.
+## 👤 페르소나
 
-Changes made via Lovable will be committed automatically to this repo.
+### 1. 일상 기록러 민지 (25세, 직장인)
+- 매일의 소소한 순간들을 기록하고 싶어함
+- SNS에 일상을 공유하는 것을 좋아함
+- 감성적이고 예쁜 디자인을 선호
+- 바쁜 일상 속에서 간편하게 기록하고 싶어함
 
-**Use your preferred IDE**
+### 2. 여행 애호가 준호 (32세, 프리랜서)
+- 여행 일정과 사진을 체계적으로 관리하고 싶어함
+- 여행 순간들을 시각적으로 정리하고 싶어함
+- 여행 기록을 다른 사람들과 공유하고 싶어함
+- 모바일에서도 편리하게 사용하기를 원함
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 3. 가족 사진사 미영 (45세, 주부)
+- 아이들의 성장 과정을 기록하고 싶어함
+- 가족 행사와 일상을 체계적으로 정리하고 싶어함
+- 기술에 익숙하지 않아 직관적인 UI를 선호
+- 저장한 기록을 가족들과 공유하고 싶어함
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 📝 사용자 스토리
 
-Follow these steps:
+### 일정 관리
+- 사용자는 캘린더에서 일정을 등록할 수 있다
+- 사용자는 일정의 제목, 날짜, 시간, 메모를 입력할 수 있다
+- 사용자는 등록된 일정을 수정하거나 삭제할 수 있다
+- 사용자는 날짜별로 등록된 일정들을 확인할 수 있다
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 사진 관리
+- 사용자는 일정에 사진을 업로드할 수 있다
+- 사용자는 드래그 앤 드롭으로 사진을 업로드할 수 있다
+- 사용자는 업로드된 사진을 삭제할 수 있다
+- 사용자는 날짜별로 업로드된 사진들을 확인할 수 있다
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 포토 덤프 생성
+- 사용자는 일정의 사진들로 포토 덤프를 생성할 수 있다
+- 사용자는 날짜별로 여러 일정의 사진들을 모아 포토 덤프를 생성할 수 있다
+- 사용자는 포토 덤프의 레이아웃을 선택할 수 있다 (4/6/8/9장 그리드)
+- 사용자는 포토 덤프의 배경색을 선택할 수 있다
+- 사용자는 포토 덤프에 제목과 메모를 추가할 수 있다
 
-# Step 3: Install the necessary dependencies.
-npm i
+### 포토 덤프 관리
+- 사용자는 생성된 포토 덤프를 PNG 파일로 저장할 수 있다
+- 사용자는 포토 덤프의 공유 링크를 생성할 수 있다
+- 사용자는 일정별/날짜별로 생성된 포토 덤프를 확인할 수 있다
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## 🛠 기술 스택
+
+- React + TypeScript
+- Vite
+- TailwindCSS
+- Shadcn/ui
+- LocalStorage
+
+## 🚀 시작하기
+
+### 설치
+
+```bash
+# 저장소 클론
+git clone https://github.com/your-username/photo-dump-daylog-magic.git
+
+# 디렉토리 이동
+cd photo-dump-daylog-magic
+
+# 의존성 설치
+npm install
+
+# 개발 서버 실행
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### 빌드
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+# 프로덕션 빌드
+npm run build
 
-**Use GitHub Codespaces**
+# 빌드 결과물 미리보기
+npm run preview
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 📱 반응형 디자인
 
-## What technologies are used for this project?
+- 모바일 (< 640px)
+- 태블릿 (640px - 1024px)
+- 데스크톱 (> 1024px)
 
-This project is built with:
+## 🎨 디자인 시스템
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### 색상
+- Primary: Peach (#FF9580)
+- Secondary: Sunset (#FFB4A4)
+- Background: (#FFFFFF)
+- Text: (#1A1A1A)
 
-## How can I deploy this project?
+### 타이포그래피
+- 기본 폰트: Inter
+- 제목: 24px - 48px
+- 본문: 16px
+- 작은 텍스트: 14px
 
-Simply open [Lovable](https://lovable.dev/projects/0a635c76-ac85-451d-927f-55e3648e85d5) and click on Share -> Publish.
+## 📋 프로젝트 구조
 
-## Can I connect a custom domain to my Lovable project?
+```
+src/
+├── components/     # UI 컴포넌트
+├── hooks/         # 커스텀 훅
+├── lib/           # 유틸리티 함수
+├── pages/         # 페이지 컴포넌트
+├── types/         # TypeScript 타입 정의
+└── utils/         # 유틸리티 함수
+```
 
-Yes, you can!
+## 🤝 기여하기
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## �� 라이선스
+
+MIT License

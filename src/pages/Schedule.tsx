@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +60,51 @@ const Schedule = () => {
     setSchedules(updated);
   };
 
-  const handleFileSelect = (scheduleIndex: number, files: FileList | File[]) => {
+  const compressImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Compress with quality 0.7 (70% of original)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = () => {
+          reject(new Error('이미지 처리 중 오류가 발생했습니다.'));
+        };
+      };
+      reader.onerror = () => reject(new Error('파일을 읽을 수 없습니다.'));
+    });
+  };
+
+  const handleFileSelect = async (scheduleIndex: number, files: FileList | File[]) => {
     const fileArray = Array.from(files);
     const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
     
@@ -85,68 +128,53 @@ const Schedule = () => {
     }
 
     const newPhotos: UploadedPhoto[] = [];
-    let processedCount = 0;
 
-    imageFiles.forEach(file => {
-      // 파일 크기 제한 (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "파일 크기 제한",
-          description: `${file.name}은 5MB를 초과합니다.`,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      try {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const photo: UploadedPhoto = {
-              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-              file,
-              preview: e.target?.result as string
-            };
-            newPhotos.push(photo);
-            processedCount++;
-            
-            if (processedCount === imageFiles.length) {
-              const updatedPhotos = [...currentPhotos, ...newPhotos];
-              updateSchedule(scheduleIndex, 'photos', updatedPhotos);
-              
-              toast({
-                title: "사진이 업로드되었습니다",
-                description: `${newPhotos.length}장의 사진이 추가되었습니다.`
-              });
-            }
-          } catch (error) {
-            console.error('Image processing error:', error);
-            toast({
-              title: "이미지 처리 오류",
-              description: "이미지를 처리하는 중 오류가 발생했습니다.",
-              variant: "destructive"
-            });
-          }
-        };
-        
-        reader.onerror = () => {
+    try {
+      for (const file of imageFiles) {
+        // 파일 크기 제한 (5MB)
+        if (file.size > 5 * 1024 * 1024) {
           toast({
-            title: "파일 읽기 오류",
-            description: `${file.name}을 읽을 수 없습니다.`,
+            title: "파일 크기 제한",
+            description: `${file.name}은 5MB를 초과합니다.`,
             variant: "destructive"
           });
-        };
-        
-        reader.readAsDataURL(file);
-      } catch (error) {
-        console.error('File reader error:', error);
-        toast({
-          title: "파일 처리 오류",
-          description: "파일을 처리하는 중 오류가 발생했습니다.",
-          variant: "destructive"
-        });
+          continue;
+        }
+
+        try {
+          // Compress the image
+          const compressedDataUrl = await compressImage(file);
+          
+          newPhotos.push({
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            file,
+            preview: compressedDataUrl
+          });
+        } catch (error) {
+          console.error('Image compression error:', error);
+          toast({
+            title: "이미지 압축 오류",
+            description: `${file.name} 파일을 처리하는 중 오류가 발생했습니다.`,
+            variant: "destructive"
+          });
+        }
       }
-    });
+
+      const updatedPhotos = [...currentPhotos, ...newPhotos];
+      updateSchedule(scheduleIndex, 'photos', updatedPhotos);
+      
+      toast({
+        title: "사진이 업로드되었습니다",
+        description: `${newPhotos.length}장의 사진이 추가되었습니다.`
+      });
+    } catch (error) {
+      console.error('Image processing error:', error);
+      toast({
+        title: "이미지 처리 오류",
+        description: "이미지를 처리하는 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
   };
 
   const removePhoto = (scheduleIndex: number, photoId: string) => {
@@ -155,7 +183,7 @@ const Schedule = () => {
     updateSchedule(scheduleIndex, 'photos', updatedPhotos);
   };
 
-  const saveSchedules = () => {
+  const saveSchedules = async () => {
     const validSchedules = schedules.filter(s => s.title && s.date);
     
     if (validSchedules.length === 0) {
@@ -168,7 +196,7 @@ const Schedule = () => {
     }
 
     try {
-      validSchedules.forEach(schedule => {
+      for (const schedule of validSchedules) {
         const eventId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
         const event: DaylogEvent = {
           id: eventId,
@@ -180,14 +208,15 @@ const Schedule = () => {
           photos: schedule.photos.map(p => p.preview)
         };
         
+        // Save schedule first
         storage.addSchedule(event);
         
-        // Save photos separately
+        // Then save photos if any exist
         if (schedule.photos.length > 0) {
           const photoUrls = schedule.photos.map(photo => photo.preview);
           storage.savePhotos(eventId, photoUrls);
         }
-      });
+      }
 
       toast({
         title: "일정이 저장되었습니다! ✨",
@@ -203,6 +232,9 @@ const Schedule = () => {
         memo: "",
         photos: []
       }]);
+
+      // Navigate to calendar
+      navigate('/calendar');
     } catch (error) {
       console.error('Save error:', error);
       toast({

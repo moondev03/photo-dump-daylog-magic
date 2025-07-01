@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,6 +94,45 @@ const Calendar = () => {
       allPhotos.push(...photos);
     });
     return allPhotos;
+  };
+
+  const getDumpForDate = (dateStr: string) => {
+    const dumps = schedules
+      .filter(schedule => schedule.date === dateStr)
+      .map(schedule => ({
+        event: schedule,
+        dump: storage.getDump(schedule.id)
+      }))
+      .filter(({ dump }) => dump !== null);
+
+    if (dumps.length === 0) return null;
+
+    // 가장 최근에 생성된 덤프 반환
+    return dumps.reduce((latest, current) => {
+      if (!latest.dump || !current.dump) return current;
+      return new Date(current.dump.createdAt) > new Date(latest.dump.createdAt) ? current : latest;
+    }).dump;
+  };
+
+  const renderPhotoDumpButton = (dateStr: string) => {
+    const photos = getPhotosForDate(dateStr);
+    if (photos.length === 0) return null;
+
+    const dump = getDumpForDate(dateStr);
+    const buttonText = dump ? '📸 이 날의 포토 덤프 보기' : '📸 이 날의 포토 덤프 만들기';
+    const buttonLink = dump ? `/result?date=${dateStr}` : `/photos?date=${dateStr}`;
+
+    return (
+      <Link to={buttonLink}>
+        <Button 
+          size="lg" 
+          className="gradient-peach text-white border-0 rounded-xl w-full mt-4"
+        >
+          <Camera className="mr-2 h-5 w-5" />
+          {buttonText}
+        </Button>
+      </Link>
+    );
   };
 
   const monthNames = [
@@ -248,18 +286,8 @@ const Calendar = () => {
                           </Card>
                         ))}
                         
-                        {/* 날짜별 포토 덤프 생성 버튼 */}
-                        {getPhotosForDate(selectedDate).length > 0 && (
-                          <Link to={`/photos?date=${selectedDate}`}>
-                            <Button 
-                              size="lg" 
-                              className="gradient-peach text-white border-0 rounded-xl w-full mt-4"
-                            >
-                              <Camera className="mr-2 h-5 w-5" />
-                              📸 이 날의 포토 덤프 만들기
-                            </Button>
-                          </Link>
-                        )}
+                        {/* 날짜별 포토 덤프 버튼 */}
+                        {renderPhotoDumpButton(selectedDate)}
                       </div>
                     )}
                   </CardContent>

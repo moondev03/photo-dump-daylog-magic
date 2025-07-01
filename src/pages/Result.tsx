@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
@@ -10,27 +10,129 @@ import { DaylogEvent, PhotoDump } from "@/types";
 const Result = () => {
   const [searchParams] = useSearchParams();
   const eventId = searchParams.get('eventId');
+  const selectedDate = searchParams.get('date');
   const dumpRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   
   const [event, setEvent] = useState<DaylogEvent | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [dump, setDump] = useState<PhotoDump | null>(null);
 
   useEffect(() => {
-    if (eventId) {
-      const foundEvent = storage.getScheduleById(eventId);
-      const foundDump = storage.getDump(eventId);
-      
-      if (foundEvent && foundDump) {
-        setEvent(foundEvent);
-        setDump(foundDump);
-        const eventPhotos = storage.getPhotos(eventId);
-        setPhotos(eventPhotos);
-      } else {
-        window.location.href = '/calendar';
+    const loadDump = () => {
+      try {
+        if (!eventId && !selectedDate) {
+          toast({
+            title: "오류 발생",
+            description: "일정 정보를 찾을 수 없습니다.",
+            variant: "destructive"
+          });
+          navigate('/calendar');
+          return;
+        }
+
+        if (eventId) {
+          // 날짜 기반 임시 이벤트인 경우
+          if (eventId.startsWith('date-')) {
+            const tempEvent = sessionStorage.getItem('tempEvent');
+            const tempDump = sessionStorage.getItem('tempDump');
+            
+            if (!tempEvent || !tempDump) {
+              toast({
+                title: "포토 덤프를 찾을 수 없습니다",
+                description: "캘린더로 돌아갑니다.",
+                variant: "destructive"
+              });
+              navigate('/calendar');
+              return;
+            }
+
+            const parsedEvent = JSON.parse(tempEvent) as DaylogEvent;
+            const parsedDump = JSON.parse(tempDump) as PhotoDump;
+            
+            setEvent(parsedEvent);
+            setPhotos(parsedEvent.photos || []);
+            setDump(parsedDump);
+
+            // 임시 데이터 정리
+            sessionStorage.removeItem('tempEvent');
+            sessionStorage.removeItem('tempDump');
+          } else {
+            // 일반 일정인 경우
+            const foundEvent = storage.getScheduleById(eventId);
+            const foundDump = storage.getDump(eventId);
+            
+            if (foundEvent && foundDump) {
+              setEvent(foundEvent);
+              setDump(foundDump);
+              const eventPhotos = storage.getPhotos(eventId);
+              setPhotos(eventPhotos);
+            } else {
+              toast({
+                title: "포토 덤프를 찾을 수 없습니다",
+                description: "캘린더로 돌아갑니다.",
+                variant: "destructive"
+              });
+              navigate('/calendar');
+            }
+          }
+        } else if (selectedDate) {
+          // 날짜 기반 모드
+          const schedules = storage.getSchedules();
+          const dateEvents = schedules.filter(schedule => schedule.date === selectedDate);
+          
+          if (dateEvents.length > 0) {
+            // 해당 날짜의 모든 덤프 찾기
+            const dateDumps = dateEvents
+              .map(event => ({
+                event,
+                dump: storage.getDump(event.id)
+              }))
+              .filter(({ dump }) => dump !== null);
+            
+            if (dateDumps.length > 0) {
+              // 가장 최근에 생성된 덤프 사용
+              const latestDump = dateDumps.reduce((latest, current) => {
+                if (!latest.dump || !current.dump) return current;
+                return new Date(current.dump.createdAt) > new Date(latest.dump.createdAt) ? current : latest;
+              });
+
+              if (latestDump.dump && latestDump.event) {
+                setEvent(latestDump.event);
+                setDump(latestDump.dump);
+                const eventPhotos = storage.getPhotos(latestDump.event.id);
+                setPhotos(eventPhotos);
+              }
+            } else {
+              toast({
+                title: "포토 덤프를 찾을 수 없습니다",
+                description: "캘린더로 돌아갑니다.",
+                variant: "destructive"
+              });
+              navigate('/calendar');
+            }
+          } else {
+            toast({
+              title: "해당 날짜의 일정을 찾을 수 없습니다",
+              description: "캘린더로 돌아갑니다.",
+              variant: "destructive"
+            });
+            navigate('/calendar');
+          }
+        }
+      } catch (error) {
+        console.error('Error loading dump:', error);
+        toast({
+          title: "오류 발생",
+          description: "포토 덤프를 불러오는 중 오류가 발생했습니다.",
+          variant: "destructive"
+        });
+        navigate('/calendar');
       }
-    }
-  }, [eventId]);
+    };
+
+    loadDump();
+  }, [eventId, selectedDate, navigate, toast]);
 
   const downloadAsPNG = async () => {
     if (!dumpRef.current) {
@@ -86,50 +188,40 @@ const Result = () => {
   const renderPhotos = () => {
     if (!dump) return null;
 
-    const layoutClass = {
-      'grid': 'grid grid-cols-2 md:grid-cols-3 gap-3',
-      'masonry': 'columns-2 md:columns-3 gap-3 space-y-3',
-      'collage': 'grid grid-cols-2 md:grid-cols-4 gap-2',
-      'minimal': 'space-y-6'
-    }[dump.style.layout] || 'grid grid-cols-2 md:grid-cols-3 gap-3';
+    const getLayoutClass = () => {
+      switch (dump.style.layout) {
+        case 'grid4': return 'grid grid-cols-2 gap-3';
+        case 'grid6': return 'grid grid-cols-2 gap-3';
+        case 'grid8': return 'grid grid-cols-2 gap-3';
+        case 'grid9': return 'grid grid-cols-3 gap-3';
+        default: return 'grid grid-cols-2 gap-3';
+      }
+    };
 
     return (
-      <div className={layoutClass}>
-        {photos.map((photo, index) => {
-          const isFirstInCollage = dump.style.layout === 'collage' && index === 0;
-          const aspectClass = {
-            'grid': 'aspect-square',
-            'masonry': index % 3 === 0 ? 'aspect-[3/4]' : index % 3 === 1 ? 'aspect-square' : 'aspect-[4/3]',
-            'collage': isFirstInCollage ? 'col-span-2 aspect-[2/1]' : 'aspect-square',
-            'minimal': 'aspect-[4/3]'
-          }[dump.style.layout] || 'aspect-square';
-
-          return (
-            <div 
-              key={index} 
-              className={`${aspectClass} rounded-2xl overflow-hidden shadow-lg ${
-                dump.style.layout === 'masonry' ? 'break-inside-avoid' : ''
-              }`}
-            >
-              <img
-                src={photo}
-                alt={`Memory ${index + 1}`}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          );
-        })}
+      <div className={getLayoutClass()}>
+        {dump.photos.map((photo, index) => (
+          <div 
+            key={index} 
+            className="aspect-square rounded-2xl overflow-hidden shadow-lg"
+          >
+            <img
+              src={photo}
+              alt={`Memory ${index + 1}`}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ))}
       </div>
     );
   };
 
   const renderPhotoDump = () => {
-    if (!event || !dump || photos.length === 0) return null;
+    if (!event || !dump || dump.photos.length === 0) return null;
 
     const containerStyle = {
       backgroundColor: dump.style.backgroundColor,
-      fontFamily: dump.style.fontFamily,
-      minHeight: '600px'
+      fontFamily: dump.style.fontFamily
     };
 
     return (

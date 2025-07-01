@@ -1,4 +1,3 @@
-
 import { DaylogEvent, PhotoDump } from '@/types';
 
 const STORAGE_KEYS = {

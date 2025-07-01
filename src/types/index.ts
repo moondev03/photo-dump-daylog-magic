@@ -1,4 +1,3 @@
-
 export interface DaylogEvent {
   id: string;
   title: string;
@@ -13,14 +12,15 @@ export interface PhotoDump {
   id: string;
   eventId: string;
   title: string;
-  memo?: string;
-  showTitle?: boolean;
-  showMemo?: boolean;
+  memo: string;
+  showTitle: boolean;
+  showMemo: boolean;
   style: {
-    layout: 'grid' | 'masonry' | 'collage' | 'minimal';
+    layout: 'grid4' | 'grid6' | 'grid8' | 'grid9';
     backgroundColor: string;
     fontFamily: string;
   };
+  photos: string[];
   createdAt: string;
 }
 
