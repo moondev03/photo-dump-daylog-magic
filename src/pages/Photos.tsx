@@ -35,41 +35,56 @@ const Photos = () => {
   }, [eventId, navigate]);
 
   const loadExistingPhotos = (eventId: string) => {
-    const existingPhotos = storage.getPhotos(eventId);
-    // For now, we'll start fresh each time
-    // In a real app, you'd want to restore the previously uploaded photos
+    const existingPhotoUrls = storage.getPhotos(eventId);
+    if (existingPhotoUrls.length > 0) {
+      const existingPhotos = existingPhotoUrls.map((url, index) => ({
+        id: `existing-${index}`,
+        file: new File([], `photo-${index}.jpg`), // Placeholder file
+        preview: url
+      }));
+      setPhotos(existingPhotos);
+    }
   };
 
   const handleFileSelect = (files: FileList | File[]) => {
-    const fileArray = Array.from(files);
-    const newPhotos: UploadedPhoto[] = [];
-
-    fileArray.forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const photo: UploadedPhoto = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            file,
-            preview: e.target?.result as string
-          };
-          newPhotos.push(photo);
-          
-          if (newPhotos.length === fileArray.filter(f => f.type.startsWith('image/')).length) {
-            setPhotos(prev => [...prev, ...newPhotos].slice(0, 10)); // Max 10 photos
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-
+    const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'));
+    
     if (fileArray.length === 0) {
       toast({
         title: "이미지 파일을 선택해주세요",
         description: "JPG, PNG 형식의 이미지만 업로드 가능합니다.",
         variant: "destructive"
       });
+      return;
     }
+
+    let processedCount = 0;
+    const newPhotos: UploadedPhoto[] = [];
+
+    fileArray.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const photo: UploadedPhoto = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          file,
+          preview: e.target?.result as string
+        };
+        newPhotos.push(photo);
+        processedCount++;
+        
+        if (processedCount === fileArray.length) {
+          setPhotos(prev => [...prev, ...newPhotos].slice(0, 10)); // Max 10 photos
+          
+          if (newPhotos.length > 0) {
+            toast({
+              title: "사진이 업로드되었습니다",
+              description: `${newPhotos.length}장의 사진이 추가되었습니다.`
+            });
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -90,13 +105,6 @@ const Photos = () => {
     setPhotos(prev => prev.filter(photo => photo.id !== id));
   };
 
-  const movePhoto = (fromIndex: number, toIndex: number) => {
-    const newPhotos = [...photos];
-    const [movedPhoto] = newPhotos.splice(fromIndex, 1);
-    newPhotos.splice(toIndex, 0, movedPhoto);
-    setPhotos(newPhotos);
-  };
-
   const proceedToPreview = () => {
     if (photos.length === 0) {
       toast({
@@ -107,9 +115,14 @@ const Photos = () => {
       return;
     }
 
-    // Save photo URLs to storage (in a real app, you'd upload to a server)
+    // Save photo URLs to storage
     const photoUrls = photos.map(photo => photo.preview);
     storage.savePhotos(eventId!, photoUrls);
+
+    toast({
+      title: "사진이 저장되었습니다",
+      description: "미리보기 페이지로 이동합니다."
+    });
 
     navigate(`/preview?eventId=${eventId}`);
   };
@@ -208,8 +221,13 @@ const Photos = () => {
                   id="photo-upload"
                 />
                 <label htmlFor="photo-upload">
-                  <Button variant="outline" className="border-2 border-peach text-peach hover:bg-peach hover:text-white cursor-pointer">
-                    📸 사진 선택하기
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    className="border-2 border-peach text-peach hover:bg-peach hover:text-white cursor-pointer"
+                    asChild
+                  >
+                    <span>📸 사진 선택하기</span>
                   </Button>
                 </label>
               </div>
@@ -229,6 +247,7 @@ const Photos = () => {
                           />
                         </div>
                         <Button
+                          type="button"
                           variant="destructive"
                           size="sm"
                           className="absolute -top-2 -right-2 rounded-full w-8 h-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"

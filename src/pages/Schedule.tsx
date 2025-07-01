@@ -6,9 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarPlus, Trash2, Calendar } from "lucide-react";
+import { CalendarPlus, Trash2, Calendar, Upload, X } from "lucide-react";
 import { storage } from "@/utils/storage";
-import { DaylogEvent } from "@/types";
+import { DaylogEvent, UploadedPhoto } from "@/types";
 
 interface ScheduleForm {
   title: string;
@@ -16,6 +16,7 @@ interface ScheduleForm {
   startTime: string;
   endTime: string;
   memo: string;
+  photos: UploadedPhoto[];
 }
 
 const Schedule = () => {
@@ -26,7 +27,8 @@ const Schedule = () => {
       date: "",
       startTime: "",
       endTime: "",
-      memo: ""
+      memo: "",
+      photos: []
     }
   ]);
 
@@ -36,7 +38,8 @@ const Schedule = () => {
       date: "",
       startTime: "",
       endTime: "",
-      memo: ""
+      memo: "",
+      photos: []
     }]);
   };
 
@@ -46,10 +49,50 @@ const Schedule = () => {
     }
   };
 
-  const updateSchedule = (index: number, field: keyof ScheduleForm, value: string) => {
+  const updateSchedule = (index: number, field: keyof ScheduleForm, value: any) => {
     const updated = [...schedules];
     updated[index] = { ...updated[index], [field]: value };
     setSchedules(updated);
+  };
+
+  const handleFileSelect = (scheduleIndex: number, files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    const newPhotos: UploadedPhoto[] = [];
+
+    fileArray.forEach(file => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const photo: UploadedPhoto = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            file,
+            preview: e.target?.result as string
+          };
+          newPhotos.push(photo);
+          
+          if (newPhotos.length === fileArray.filter(f => f.type.startsWith('image/')).length) {
+            const currentPhotos = schedules[scheduleIndex].photos;
+            const updatedPhotos = [...currentPhotos, ...newPhotos].slice(0, 10); // Max 10 photos
+            updateSchedule(scheduleIndex, 'photos', updatedPhotos);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    if (fileArray.length === 0 || !fileArray.some(f => f.type.startsWith('image/'))) {
+      toast({
+        title: "이미지 파일을 선택해주세요",
+        description: "JPG, PNG 형식의 이미지만 업로드 가능합니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const removePhoto = (scheduleIndex: number, photoId: string) => {
+    const currentPhotos = schedules[scheduleIndex].photos;
+    const updatedPhotos = currentPhotos.filter(photo => photo.id !== photoId);
+    updateSchedule(scheduleIndex, 'photos', updatedPhotos);
   };
 
   const saveSchedules = () => {
@@ -65,16 +108,24 @@ const Schedule = () => {
     }
 
     validSchedules.forEach(schedule => {
+      const eventId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
       const event: DaylogEvent = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        id: eventId,
         title: schedule.title,
         date: schedule.date,
         startTime: schedule.startTime,
         endTime: schedule.endTime,
         memo: schedule.memo,
-        photos: []
+        photos: schedule.photos.map(p => p.preview)
       };
+      
       storage.addSchedule(event);
+      
+      // Save photos separately
+      if (schedule.photos.length > 0) {
+        const photoUrls = schedule.photos.map(photo => photo.preview);
+        storage.savePhotos(eventId, photoUrls);
+      }
     });
 
     toast({
@@ -88,7 +139,8 @@ const Schedule = () => {
       date: "",
       startTime: "",
       endTime: "",
-      memo: ""
+      memo: "",
+      photos: []
     }]);
   };
 
@@ -106,7 +158,7 @@ const Schedule = () => {
             📅 일정 등록하기
           </h2>
           <p className="text-muted-foreground text-lg">
-            오늘의 일정을 등록하고 나중에 사진과 함께 포토 덤프를 만들어보세요
+            오늘의 일정과 사진을 함께 등록하고 나중에 포토 덤프를 만들어보세요
           </p>
         </div>
 
@@ -129,70 +181,138 @@ const Schedule = () => {
                   </Button>
                 )}
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Title */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    제목 *
-                  </label>
-                  <Input
-                    placeholder="예: 카페에서 친구와 만남"
-                    value={schedule.title}
-                    onChange={(e) => updateSchedule(index, 'title', e.target.value)}
-                    className="rounded-xl border-2 focus:border-peach"
-                  />
-                </div>
-
-                {/* Date */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    날짜 *
-                  </label>
-                  <Input
-                    type="date"
-                    value={schedule.date}
-                    onChange={(e) => updateSchedule(index, 'date', e.target.value)}
-                    className="rounded-xl border-2 focus:border-peach"
-                  />
-                </div>
-
-                {/* Time */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CardContent className="space-y-6">
+                {/* Basic Info */}
+                <div className="space-y-4">
+                  {/* Title */}
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      시작 시간
+                      제목 *
                     </label>
                     <Input
-                      type="time"
-                      value={schedule.startTime}
-                      onChange={(e) => updateSchedule(index, 'startTime', e.target.value)}
+                      placeholder="예: 카페에서 친구와 만남"
+                      value={schedule.title}
+                      onChange={(e) => updateSchedule(index, 'title', e.target.value)}
                       className="rounded-xl border-2 focus:border-peach"
                     />
                   </div>
+
+                  {/* Date */}
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      종료 시간
+                      날짜 *
                     </label>
                     <Input
-                      type="time"
-                      value={schedule.endTime}
-                      onChange={(e) => updateSchedule(index, 'endTime', e.target.value)}
+                      type="date"
+                      value={schedule.date}
+                      onChange={(e) => updateSchedule(index, 'date', e.target.value)}
                       className="rounded-xl border-2 focus:border-peach"
+                    />
+                  </div>
+
+                  {/* Time */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        시작 시간
+                      </label>
+                      <Input
+                        type="time"
+                        value={schedule.startTime}
+                        onChange={(e) => updateSchedule(index, 'startTime', e.target.value)}
+                        className="rounded-xl border-2 focus:border-peach"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        종료 시간
+                      </label>
+                      <Input
+                        type="time"
+                        value={schedule.endTime}
+                        onChange={(e) => updateSchedule(index, 'endTime', e.target.value)}
+                        className="rounded-xl border-2 focus:border-peach"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Memo */}
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      메모 (선택)
+                    </label>
+                    <Textarea
+                      placeholder="일정에 대한 추가 정보나 메모를 입력하세요"
+                      value={schedule.memo}
+                      onChange={(e) => updateSchedule(index, 'memo', e.target.value)}
+                      className="rounded-xl border-2 focus:border-peach min-h-[100px]"
                     />
                   </div>
                 </div>
 
-                {/* Memo */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    메모 (선택)
+                {/* Photos Section */}
+                <div className="border-t pt-6">
+                  <label className="block text-sm font-medium text-foreground mb-4">
+                    사진 ({schedule.photos.length}/10)
                   </label>
-                  <Textarea
-                    placeholder="일정에 대한 추가 정보나 메모를 입력하세요"
-                    value={schedule.memo}
-                    onChange={(e) => updateSchedule(index, 'memo', e.target.value)}
-                    className="rounded-xl border-2 focus:border-peach min-h-[100px]"
-                  />
+                  
+                  {/* Upload Zone */}
+                  <div className="border-2 border-dashed border-muted-foreground/30 rounded-xl p-8 text-center hover:border-peach hover:bg-peach/5 transition-all duration-300">
+                    <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                    <h4 className="text-lg font-medium mb-2">사진 업로드</h4>
+                    <p className="text-muted-foreground mb-4">
+                      최대 10장까지 업로드 가능 (JPG, PNG)
+                    </p>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => e.target.files && handleFileSelect(index, e.target.files)}
+                      className="hidden"
+                      id={`photo-upload-${index}`}
+                    />
+                    <label htmlFor={`photo-upload-${index}`}>
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        className="border-2 border-peach text-peach hover:bg-peach hover:text-white cursor-pointer"
+                        asChild
+                      >
+                        <span>📸 사진 선택하기</span>
+                      </Button>
+                    </label>
+                  </div>
+
+                  {/* Photo Grid */}
+                  {schedule.photos.length > 0 && (
+                    <div className="mt-6">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {schedule.photos.map((photo, photoIndex) => (
+                          <div key={photo.id} className="relative group">
+                            <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                              <img
+                                src={photo.preview}
+                                alt={`Upload ${photoIndex + 1}`}
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute -top-2 -right-2 rounded-full w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => removePhoto(index, photo.id)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                            <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1 py-0.5 rounded">
+                              {photoIndex + 1}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
