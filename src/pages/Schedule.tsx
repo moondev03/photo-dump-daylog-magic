@@ -145,20 +145,20 @@ const Schedule = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-cream/20 to-lavender/20">
+    <div className="min-h-screen bg-gradient-to-br from-background via-peach/20 to-sunset/20">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
           <Link to="/" className="inline-block mb-6">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-peach to-sunset bg-clip-text text-transparent">
-              Daylog
+              마침 - MaChim
             </h1>
           </Link>
           <h2 className="text-3xl font-bold text-foreground mb-4">
-            📅 일정 등록하기
+            ✏️ 새로운 일정 등록
           </h2>
           <p className="text-muted-foreground text-lg">
-            오늘의 일정과 사진을 함께 등록하고 나중에 포토 덤프를 만들어보세요
+            특별한 순간을 기록하고 포토 덤프를 만들어보세요
           </p>
         </div>
 

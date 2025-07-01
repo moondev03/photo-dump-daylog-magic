@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -34,7 +33,14 @@ const Result = () => {
   }, [eventId]);
 
   const downloadAsPNG = async () => {
-    if (!dumpRef.current) return;
+    if (!dumpRef.current) {
+      toast({
+        title: "다운로드 오류",
+        description: "덤프 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       toast({
@@ -42,28 +48,39 @@ const Result = () => {
         description: "실제 서비스에서는 PNG 파일로 다운로드됩니다.",
       });
     } catch (error) {
+      console.error('Download error:', error);
       toast({
         title: "다운로드 실패",
-        description: "다시 시도해주세요.",
+        description: `다운로드 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
         variant: "destructive"
       });
     }
   };
 
   const shareLink = () => {
-    const currentUrl = window.location.href;
-    navigator.clipboard.writeText(currentUrl).then(() => {
-      toast({
-        title: "링크가 복사되었습니다! 📎",
-        description: "포토 덤프 링크를 친구들과 공유해보세요."
+    try {
+      const currentUrl = window.location.href;
+      navigator.clipboard.writeText(currentUrl).then(() => {
+        toast({
+          title: "링크가 복사되었습니다! 📎",
+          description: "포토 덤프 링크를 친구들과 공유해보세요."
+        });
+      }).catch((error) => {
+        console.error('Copy error:', error);
+        toast({
+          title: "복사 실패",
+          description: `클립보드 복사 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`,
+          variant: "destructive"
+        });
       });
-    }).catch(() => {
+    } catch (error) {
+      console.error('Share error:', error);
       toast({
-        title: "복사 실패",
-        description: "다시 시도해주세요.",
+        title: "공유 실패",
+        description: `링크 공유 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
         variant: "destructive"
       });
-    });
+    }
   };
 
   const renderPhotos = () => {
@@ -164,7 +181,7 @@ const Result = () => {
         <div className="text-center mb-12">
           <Link to="/" className="inline-block mb-6">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-peach to-sunset bg-clip-text text-transparent">
-              Daylog
+              마침 - MaChim
             </h1>
           </Link>
           <h2 className="text-3xl font-bold text-foreground mb-4">

@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, ArrowRight, AlertTriangle } from "lucide-react";
 import { storage } from "@/utils/storage";
 import { DaylogEvent } from "@/types";
 import { toast } from "@/hooks/use-toast";
@@ -18,11 +19,15 @@ const Preview = () => {
   const eventId = searchParams.get('eventId');
   
   const [event, setEvent] = useState<DaylogEvent | null>(null);
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [allPhotos, setAllPhotos] = useState<string[]>([]);
+  const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
+  const [selectedCount, setSelectedCount] = useState<2 | 4 | 6 | 8 | 9>(4);
   const [dumpTitle, setDumpTitle] = useState("");
   const [dumpMemo, setDumpMemo] = useState("");
-  const [showTitle, setShowTitle] = useState(false);
-  const [showMemo, setShowMemo] = useState(false);
+  const [showTitle, setShowTitle] = useState(true);
+  const [showMemo, setShowMemo] = useState(true);
+
+  const availableCounts = [2, 4, 6, 8, 9] as const;
 
   useEffect(() => {
     if (eventId) {
@@ -30,7 +35,7 @@ const Preview = () => {
       if (foundEvent) {
         setEvent(foundEvent);
         const eventPhotos = storage.getPhotos(eventId);
-        setPhotos(eventPhotos);
+        setAllPhotos(eventPhotos);
         
         if (eventPhotos.length === 0) {
           toast({
@@ -39,30 +44,90 @@ const Preview = () => {
             variant: "destructive"
           });
           navigate(`/photos?eventId=${eventId}`);
+          return;
         }
+        
+        // Set initial selection
+        const initialCount = Math.min(4, eventPhotos.length) as 2 | 4 | 6 | 8 | 9;
+        setSelectedCount(initialCount);
+        setSelectedPhotos(eventPhotos.slice(0, initialCount));
+        setDumpTitle(foundEvent.title);
       } else {
+        toast({
+          title: "일정을 찾을 수 없습니다",
+          description: "캘린더로 돌아갑니다.",
+          variant: "destructive"
+        });
         navigate('/calendar');
       }
     }
   }, [eventId, navigate]);
 
-  const proceedToStyle = () => {
-    if (photos.length === 0) {
+  const handleCountChange = (count: string) => {
+    const newCount = parseInt(count) as 2 | 4 | 6 | 8 | 9;
+    setSelectedCount(newCount);
+    
+    if (newCount > allPhotos.length) {
       toast({
-        title: "사진을 업로드해주세요",
-        description: "최소 1장의 사진이 필요합니다.",
+        title: "사진이 부족합니다",
+        description: `${newCount}개의 사진이 필요하지만 ${allPhotos.length}개만 있습니다.`,
         variant: "destructive"
       });
       return;
     }
+    
+    setSelectedPhotos(allPhotos.slice(0, newCount));
+  };
 
-    // Save temporary data for style page
-    sessionStorage.setItem('dumpTitle', showTitle ? dumpTitle : '');
-    sessionStorage.setItem('dumpMemo', showMemo ? dumpMemo : '');
-    sessionStorage.setItem('showTitle', showTitle.toString());
-    sessionStorage.setItem('showMemo', showMemo.toString());
+  const handlePhotoSelect = (photoIndex: number) => {
+    const photo = allPhotos[photoIndex];
+    const currentIndex = selectedPhotos.indexOf(photo);
+    
+    if (currentIndex >= 0) {
+      // Remove photo
+      setSelectedPhotos(prev => prev.filter((_, index) => index !== currentIndex));
+    } else if (selectedPhotos.length < selectedCount) {
+      // Add photo
+      setSelectedPhotos(prev => [...prev, photo]);
+    } else {
+      toast({
+        title: "선택 제한",
+        description: `최대 ${selectedCount}개의 사진만 선택할 수 있습니다.`,
+        variant: "destructive"
+      });
+    }
+  };
 
-    navigate(`/style?eventId=${eventId}`);
+  const proceedToStyle = () => {
+    try {
+      if (selectedPhotos.length !== selectedCount) {
+        toast({
+          title: "사진 선택 오류",
+          description: `정확히 ${selectedCount}개의 사진을 선택해주세요. (현재: ${selectedPhotos.length}개)`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Save selected photos
+      storage.savePhotos(eventId!, selectedPhotos);
+      
+      // Save preview data to session storage
+      sessionStorage.setItem('dumpTitle', dumpTitle);
+      sessionStorage.setItem('dumpMemo', dumpMemo);
+      sessionStorage.setItem('showTitle', showTitle.toString());
+      sessionStorage.setItem('showMemo', showMemo.toString());
+      sessionStorage.setItem('selectedCount', selectedCount.toString());
+      
+      navigate(`/style?eventId=${eventId}`);
+    } catch (error) {
+      console.error('Error proceeding to style:', error);
+      toast({
+        title: "오류 발생",
+        description: "스타일 설정 페이지로 이동하는 중 오류가 발생했습니다. 다시 시도해주세요.",
+        variant: "destructive"
+      });
+    }
   };
 
   if (!event) {
@@ -83,176 +148,203 @@ const Preview = () => {
         <div className="text-center mb-12">
           <Link to="/" className="inline-block mb-6">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-peach to-sunset bg-clip-text text-transparent">
-              Daylog
+              마침 - MaChim
             </h1>
           </Link>
           <h2 className="text-3xl font-bold text-foreground mb-4">
-            ✨ 포토 덤프 미리보기
+            📸 포토 덤프 미리보기
           </h2>
           <p className="text-muted-foreground text-lg">
-            포토 덤프의 내용을 확인하고 제목과 메모를 설정해보세요
+            {event.title}의 추억을 담은 포토 덤프를 설정해보세요
           </p>
         </div>
 
-        <div className="max-w-4xl mx-auto space-y-8">
-          {/* Event Info */}
-          <Card className="glass-effect border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="text-2xl font-bold">{event.title}</span>
-                <Link to={`/photos?eventId=${eventId}`}>
-                  <Button variant="ghost" size="sm">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    사진 업로드로 돌아가기
-                  </Button>
-                </Link>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-muted-foreground">
-                <p>📅 {new Date(event.date).toLocaleDateString('ko-KR', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  weekday: 'long'
-                })}</p>
-                {(event.startTime || event.endTime) && (
-                  <p>⏰ {event.startTime} {event.startTime && event.endTime && '- '} {event.endTime}</p>
-                )}
-                {event.memo && (
-                  <p>📝 {event.memo}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8">
+          {/* Settings */}
+          <div className="space-y-6">
+            {/* Image Count Selection */}
+            <Card className="glass-effect border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="text-xl font-bold">사진 개수 선택</span>
+                  <Link to={`/photos?eventId=${eventId}`}>
+                    <Button variant="ghost" size="sm">
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      사진 관리로 돌아가기
+                    </Button>
+                  </Link>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <Select value={selectedCount.toString()} onValueChange={handleCountChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="사진 개수 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCounts.map(count => (
+                        <SelectItem 
+                          key={count} 
+                          value={count.toString()}
+                          disabled={count > allPhotos.length}
+                        >
+                          {count}개의 사진 {count > allPhotos.length && `(부족함: ${allPhotos.length}개 보유)`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  {selectedCount > allPhotos.length && (
+                    <div className="flex items-center space-x-2 text-destructive text-sm">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>사진이 부족합니다. 더 많은 사진을 업로드하거나 개수를 줄여주세요.</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Photo Preview */}
-          <Card className="glass-effect border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">업로드된 사진들 ({photos.length}장)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {photos.map((photo, index) => (
-                  <div key={index} className="aspect-square rounded-xl overflow-hidden bg-muted shadow-md">
-                    <img
-                      src={photo}
-                      alt={`Photo ${index + 1}`}
-                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+            {/* Photo Selection */}
+            <Card className="glass-effect border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold">
+                  사진 선택 ({selectedPhotos.length}/{selectedCount})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-3 max-h-64 overflow-y-auto">
+                  {allPhotos.map((photo, index) => {
+                    const isSelected = selectedPhotos.includes(photo);
+                    const selectionIndex = selectedPhotos.indexOf(photo);
+                    
+                    return (
+                      <div
+                        key={index}
+                        className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
+                          isSelected 
+                            ? 'border-peach ring-2 ring-peach/30' 
+                            : 'border-border hover:border-peach/50'
+                        }`}
+                        onClick={() => handlePhotoSelect(index)}
+                      >
+                        <img
+                          src={photo}
+                          alt={`Photo ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        {isSelected && (
+                          <div className="absolute top-1 right-1 bg-peach text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                            {selectionIndex + 1}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Content Settings */}
+            <Card className="glass-effect border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold">내용 설정</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="show-title">제목 표시</Label>
+                    <Switch
+                      id="show-title"
+                      checked={showTitle}
+                      onCheckedChange={setShowTitle}
                     />
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Optional Content Settings */}
-          <Card className="glass-effect border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">포토 덤프 설정</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Title Option */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="show-title"
-                    checked={showTitle}
-                    onCheckedChange={setShowTitle}
-                  />
-                  <Label htmlFor="show-title" className="text-base font-medium">
-                    제목 추가하기
-                  </Label>
-                </div>
-                
-                {showTitle && (
-                  <div className="space-y-2">
-                    <Label htmlFor="dump-title">포토 덤프 제목</Label>
+                  {showTitle && (
                     <Input
-                      id="dump-title"
+                      placeholder="포토 덤프 제목을 입력하세요"
                       value={dumpTitle}
                       onChange={(e) => setDumpTitle(e.target.value)}
-                      placeholder="예: 🌇 오늘의 하루, ☕ 카페 투어..."
-                      className="text-lg"
+                    />
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="show-memo">메모 표시</Label>
+                    <Switch
+                      id="show-memo"
+                      checked={showMemo}
+                      onCheckedChange={setShowMemo}
                     />
                   </div>
-                )}
-              </div>
-
-              {/* Memo Option */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="show-memo"
-                    checked={showMemo}
-                    onCheckedChange={setShowMemo}
-                  />
-                  <Label htmlFor="show-memo" className="text-base font-medium">
-                    메모 추가하기
-                  </Label>
-                </div>
-                
-                {showMemo && (
-                  <div className="space-y-2">
-                    <Label htmlFor="dump-memo">포토 덤프 메모</Label>
+                  {showMemo && (
                     <Textarea
-                      id="dump-memo"
+                      placeholder="특별한 추억이나 감정을 적어보세요..."
                       value={dumpMemo}
                       onChange={(e) => setDumpMemo(e.target.value)}
-                      placeholder="이 순간에 대한 감상이나 메모를 남겨보세요..."
-                      rows={4}
+                      rows={3}
                     />
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Preview Section */}
-          <Card className="glass-effect border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">미리보기</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-white rounded-2xl p-6 shadow-inner border">
-                {showTitle && dumpTitle && (
-                  <h3 className="text-2xl font-bold text-center mb-6 text-gray-800">
-                    {dumpTitle}
-                  </h3>
-                )}
-                
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  {photos.slice(0, 4).map((photo, index) => (
-                    <div key={index} className="aspect-square rounded-lg overflow-hidden">
-                      <img
-                        src={photo}
-                        alt={`Preview ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
+                  )}
                 </div>
+              </CardContent>
+            </Card>
+          </div>
 
-                {showMemo && dumpMemo && (
-                  <p className="text-center text-gray-600 italic border-t pt-4">
-                    "{dumpMemo}"
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Preview */}
+          <div className="lg:sticky lg:top-8">
+            <Card className="glass-effect border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold">미리보기</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-white rounded-2xl p-6 shadow-inner border max-h-96 overflow-y-auto">
+                  {showTitle && dumpTitle && (
+                    <h3 className="text-xl font-bold text-center mb-4 text-gray-800">
+                      {dumpTitle}
+                    </h3>
+                  )}
 
-          {/* Action Button */}
-          <div className="flex justify-center">
-            <Button
-              onClick={proceedToStyle}
-              size="lg"
-              disabled={photos.length === 0}
-              className="gradient-peach text-white border-0 px-8 py-4 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-            >
-              <ArrowRight className="mr-2 h-5 w-5" />
-              다음 → 스타일 설정
-            </Button>
+                  {selectedPhotos.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      {selectedPhotos.slice(0, 4).map((photo, index) => (
+                        <div key={index} className="aspect-square rounded-md overflow-hidden">
+                          <img
+                            src={photo}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {showMemo && dumpMemo && (
+                    <p className="text-center text-sm text-gray-600 italic border-t pt-3">
+                      "{dumpMemo}"
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Action Button */}
+            <div className="mt-6 text-center">
+              <Button
+                onClick={proceedToStyle}
+                size="lg"
+                disabled={selectedPhotos.length !== selectedCount}
+                className="gradient-peach text-white border-0 px-8 py-4 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 w-full"
+              >
+                <ArrowRight className="mr-2 h-5 w-5" />
+                🎨 스타일 설정으로 계속
+              </Button>
+              
+              {selectedPhotos.length !== selectedCount && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  {selectedCount}개의 사진을 선택해주세요 (현재: {selectedPhotos.length}개)
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
