@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { Download, Share2, Calendar } from "lucide-react";
 import { storage } from "@/utils/storage";
 import { MaChimEvent, PhotoDump } from "@/types";
+import html2canvas from "html2canvas";
 
 const Result = () => {
   const [searchParams] = useSearchParams();
@@ -145,9 +146,37 @@ const Result = () => {
     }
 
     try {
+      // 로딩 토스트 표시
       toast({
-        title: "다운로드 기능 준비 중",
-        description: "실제 서비스에서는 PNG 파일로 다운로드됩니다.",
+        title: "이미지 생성 중...",
+        description: "잠시만 기다려주세요.",
+      });
+
+      // html2canvas 옵션 설정
+      const options = {
+        scale: 2, // 고해상도를 위해 2배 스케일
+        useCORS: true, // 외부 이미지 허용
+        backgroundColor: null, // 배경 투명도 유지
+        logging: false, // 로깅 비활성화
+      };
+
+      // HTML 요소를 캔버스로 변환
+      const canvas = await html2canvas(dumpRef.current, options);
+
+      // 캔버스를 PNG로 변환
+      const dataUrl = canvas.toDataURL("image/png");
+
+      // 다운로드 링크 생성 및 클릭
+      const link = document.createElement("a");
+      const fileName = `${event?.title || "포토덤프"}_${new Date().toLocaleDateString("ko-KR").replace(/\./g, "")}.png`;
+      link.download = fileName;
+      link.href = dataUrl;
+      link.click();
+
+      // 성공 토스트 표시
+      toast({
+        title: "다운로드 완료! 🎉",
+        description: "포토 덤프가 PNG 파일로 저장되었습니다.",
       });
     } catch (error) {
       console.error('Download error:', error);
