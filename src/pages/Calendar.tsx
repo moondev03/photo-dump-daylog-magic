@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
@@ -12,16 +12,8 @@ const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedSchedules, setSelectedSchedules] = useState<MaChimEvent[]>([]);
 
-  useEffect(() => {
-    loadSchedules();
-  }, []);
-
-  const loadSchedules = () => {
-    const stored = storage.getSchedules();
-    setSchedules(stored);
-  };
-
-  const getMonthSchedules = () => {
+  // 캐시된 월별 일정
+  const monthSchedules = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     
@@ -29,43 +21,22 @@ const Calendar = () => {
       const scheduleDate = new Date(schedule.date);
       return scheduleDate.getFullYear() === year && scheduleDate.getMonth() === month;
     });
-  };
+  }, [currentDate, schedules]);
 
-  const getDaysInMonth = () => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
+  // 일정 로드 함수 메모이제이션
+  const loadSchedules = useCallback(() => {
+    const stored = storage.getSchedules();
+    setSchedules(stored);
+  }, []);
 
-    const days = [];
-    
-    // Empty cells for days before the first day of the month
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-    
-    // Days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(day);
-    }
-    
-    return days;
-  };
+  useEffect(() => {
+    loadSchedules();
+  }, [loadSchedules]);
 
-  const getSchedulesForDate = (day: number) => {
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return schedules.filter(schedule => schedule.date === dateStr);
-  };
-
-  const handleDateClick = (day: number) => {
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    setSelectedDate(dateStr);
-    setSelectedSchedules(getSchedulesForDate(day));
-  };
-
+  // 월 변경 시 선택된 날짜 초기화
   const navigateMonth = (direction: 'prev' | 'next') => {
+    setSelectedDate("");
+    setSelectedSchedules([]);
     const newDate = new Date(currentDate);
     if (direction === 'prev') {
       newDate.setMonth(newDate.getMonth() - 1);
@@ -76,17 +47,42 @@ const Calendar = () => {
   };
 
   const goToToday = () => {
-    setCurrentDate(new Date());
+    const today = new Date();
+    setCurrentDate(today);
+    const dateStr = today.toISOString().split('T')[0];
+    setSelectedDate(dateStr);
+    setSelectedSchedules(schedules.filter(s => s.date === dateStr));
   };
 
-  const deleteSchedule = (id: string) => {
-    storage.deleteSchedule(id);
-    loadSchedules();
-    const updatedSelected = selectedSchedules.filter(s => s.id !== id);
-    setSelectedSchedules(updatedSelected);
+  // 날짜별 일정 조회 함수 메모이제이션
+  const getSchedulesForDate = useCallback((day: number) => {
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return monthSchedules.filter(schedule => schedule.date === dateStr);
+  }, [currentDate, monthSchedules]);
+
+  const handleDateClick = (day: number) => {
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    setSelectedDate(dateStr);
+    setSelectedSchedules(getSchedulesForDate(day));
   };
 
-  const getPhotosForDate = (dateStr: string) => {
+  // 일정 삭제 함수 개선
+  const deleteSchedule = async (id: string) => {
+    try {
+      storage.deleteSchedule(id);
+      const stored = storage.getSchedules();
+      setSchedules(stored);
+      if (selectedDate) {
+        const dateSchedules = stored.filter(s => s.date === selectedDate);
+        setSelectedSchedules(dateSchedules);
+      }
+    } catch (error) {
+      console.error('Delete schedule error:', error);
+    }
+  };
+
+  // 포토 덤프 관련 함수들 메모이제이션
+  const getPhotosForDate = useCallback((dateStr: string) => {
     const daySchedules = schedules.filter(schedule => schedule.date === dateStr);
     const allPhotos: string[] = [];
     daySchedules.forEach(schedule => {
@@ -94,9 +90,9 @@ const Calendar = () => {
       allPhotos.push(...photos);
     });
     return allPhotos;
-  };
+  }, [schedules]);
 
-  const getDumpForDate = (dateStr: string) => {
+  const getDumpForDate = useCallback((dateStr: string) => {
     const dumps = schedules
       .filter(schedule => schedule.date === dateStr)
       .map(schedule => ({
@@ -107,14 +103,14 @@ const Calendar = () => {
 
     if (dumps.length === 0) return null;
 
-    // 가장 최근에 생성된 덤프 반환
     return dumps.reduce((latest, current) => {
       if (!latest.dump || !current.dump) return current;
       return new Date(current.dump.createdAt) > new Date(latest.dump.createdAt) ? current : latest;
     }).dump;
-  };
+  }, [schedules]);
 
-  const renderPhotoDumpButton = (dateStr: string) => {
+  // 포토 덤프 버튼 렌더링 함수 메모이제이션
+  const renderPhotoDumpButton = useCallback((dateStr: string) => {
     const photos = getPhotosForDate(dateStr);
     if (photos.length === 0) return null;
 
@@ -133,6 +129,49 @@ const Calendar = () => {
         </Button>
       </Link>
     );
+  }, [getPhotosForDate, getDumpForDate]);
+
+  const getDaysInMonth = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    const days = [];
+    const totalCells = 42; // 6주 * 7일 = 42칸으로 고정
+    
+    // 월 시작 전 빈 칸
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      const prevMonthDay = new Date(year, month, -i);
+      days.unshift({
+        day: prevMonthDay.getDate(),
+        isCurrentMonth: false,
+        isDisabled: true
+      });
+    }
+    
+    // 현재 월의 날짜들
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push({
+        day,
+        isCurrentMonth: true,
+        isDisabled: false
+      });
+    }
+    
+    // 월 끝 이후 빈 칸
+    const remainingCells = totalCells - days.length;
+    for (let i = 1; i <= remainingCells; i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: false,
+        isDisabled: true
+      });
+    }
+    
+    return days;
   };
 
   const monthNames = [
@@ -194,19 +233,28 @@ const Calendar = () => {
                 
                 {/* Calendar grid */}
                 <div className="grid grid-cols-7 gap-2">
-                  {getDaysInMonth().map((day, index) => {
-                    if (day === null) {
-                      return <div key={index} className="h-16"></div>;
+                  {getDaysInMonth().map((dayInfo, index) => {
+                    if (!dayInfo.isCurrentMonth) {
+                      return (
+                        <div 
+                          key={`empty-${index}`} 
+                          className="h-16 p-1 rounded-lg border-2 border-border/30 bg-muted/10"
+                        >
+                          <div className="font-medium text-sm text-muted-foreground/50">
+                            {dayInfo.day}
+                          </div>
+                        </div>
+                      );
                     }
                     
-                    const daySchedules = getSchedulesForDate(day);
-                    const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
-                    const isSelected = selectedDate === `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const daySchedules = getSchedulesForDate(dayInfo.day);
+                    const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), dayInfo.day).toDateString();
+                    const isSelected = selectedDate === `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(dayInfo.day).padStart(2, '0')}`;
                     
                     return (
                       <button
-                        key={day}
-                        onClick={() => handleDateClick(day)}
+                        key={`day-${dayInfo.day}`}
+                        onClick={() => handleDateClick(dayInfo.day)}
                         className={`h-16 p-1 rounded-lg border-2 text-left transition-all duration-200 hover:scale-105 ${
                           isSelected 
                             ? 'border-peach bg-peach/20' 
@@ -215,7 +263,7 @@ const Calendar = () => {
                               : 'border-border hover:border-peach/50'
                         }`}
                       >
-                        <div className="font-medium text-sm">{day}</div>
+                        <div className="font-medium text-sm">{dayInfo.day}</div>
                         {daySchedules.length > 0 && (
                           <div className="flex gap-1 mt-1">
                             {daySchedules.slice(0, 2).map((_, i) => (
