@@ -7,6 +7,15 @@ import { Download, Share2, Calendar } from "lucide-react";
 import { storage } from "@/utils/storage";
 import { MaChimEvent, PhotoDump } from "@/types";
 import html2canvas from "html2canvas";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Result = () => {
   const [searchParams] = useSearchParams();
@@ -18,6 +27,7 @@ const Result = () => {
   const [event, setEvent] = useState<MaChimEvent | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [dump, setDump] = useState<PhotoDump | null>(null);
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   useEffect(() => {
     const loadDump = () => {
@@ -188,30 +198,8 @@ const Result = () => {
     }
   };
 
-  const shareLink = () => {
-    try {
-      const currentUrl = window.location.href;
-      navigator.clipboard.writeText(currentUrl).then(() => {
-        toast({
-          title: "링크가 복사되었습니다! 📎",
-          description: "포토 덤프 링크를 친구들과 공유해보세요."
-        });
-      }).catch((error) => {
-        console.error('Copy error:', error);
-        toast({
-          title: "복사 실패",
-          description: `클립보드 복사 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`,
-          variant: "destructive"
-        });
-      });
-    } catch (error) {
-      console.error('Share error:', error);
-      toast({
-        title: "공유 실패",
-        description: `링크 공유 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
-        variant: "destructive"
-      });
-    }
+  const showShareAlert = () => {
+    setShowShareDialog(true);
   };
 
   const renderPhotos = () => {
@@ -297,6 +285,28 @@ const Result = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-peach/20 to-sunset/20">
+      {/* AlertDialog for share feature */}
+      <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>🚧 공유 기능 준비 중</AlertDialogTitle>
+            <AlertDialogDescription>
+              포토 덤프 공유 기능은 현재 개발 중입니다. 더 나은 서비스로 찾아뵙겠습니다.
+              <br /><br />
+              지원 예정 기능:
+              <ul className="list-disc list-inside mt-2">
+                <li>Instagram 스토리/게시물 공유</li>
+                <li>카카오톡 공유하기</li>
+                <li>URL 공유하기</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>확인</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -333,13 +343,13 @@ const Result = () => {
             </Button>
             
             <Button
-              onClick={shareLink}
+              onClick={showShareAlert}
               variant="outline"
               size="lg"
               className="px-8 py-4 text-lg font-semibold rounded-2xl border-2 border-peach text-peach hover:bg-peach hover:text-white transition-all duration-300 hover:scale-105"
             >
               <Share2 className="mr-2 h-5 w-5" />
-              📤 공유 링크 복사
+              📤 공유하기
             </Button>
           </div>
 
