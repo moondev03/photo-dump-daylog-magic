@@ -357,7 +357,7 @@ const Calendar = () => {
               <CardHeader>
                 <CardTitle className="text-xl">빠른 액션</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="flex flex-col gap-4">
                 <Link to="/schedule">
                   <Button variant="outline" className="w-full border-2 border-peach text-peach hover:bg-peach hover:text-white">
                     ➕ 새 일정 등록
