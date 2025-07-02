@@ -183,6 +183,35 @@ const Schedule = () => {
     updateSchedule(scheduleIndex, 'photos', updatedPhotos);
   };
 
+  const validateScheduleTimes = (schedule: ScheduleForm): boolean => {
+    // 시작 시간과 종료 시간이 모두 없는 경우는 유효함
+    if (!schedule.startTime && !schedule.endTime) {
+      return true;
+    }
+
+    // 시작 시간만 있거나 종료 시간만 있는 경우는 유효하지 않음
+    if ((!schedule.startTime && schedule.endTime) || (schedule.startTime && !schedule.endTime)) {
+      toast({
+        title: "시간 입력 오류",
+        description: "시작 시간과 종료 시간을 모두 입력하거나, 모두 비워두세요.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    // 시작 시간이 종료 시간보다 늦은 경우
+    if (schedule.startTime && schedule.endTime && schedule.startTime >= schedule.endTime) {
+      toast({
+        title: "시간 입력 오류",
+        description: "종료 시간은 시작 시간보다 늦어야 합니다.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const saveSchedules = async () => {
     const validSchedules = schedules.filter(s => s.title && s.date);
     
@@ -193,6 +222,13 @@ const Schedule = () => {
         variant: "destructive"
       });
       return;
+    }
+
+    // 시간 유효성 검사
+    for (const schedule of validSchedules) {
+      if (!validateScheduleTimes(schedule)) {
+        return;
+      }
     }
 
     try {
