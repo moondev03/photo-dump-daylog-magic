@@ -7,7 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { Link, useNavigate } from "react-router-dom";
 import { CalendarPlus, Trash2, Calendar, Upload, X } from "lucide-react";
 import { storage } from "@/utils/storage";
-import { DaylogEvent } from "@/types";
+import { MaChimEvent } from "@/types";
 
 interface UploadedPhoto {
   id: string;
@@ -198,7 +198,7 @@ const Schedule = () => {
     try {
       for (const schedule of validSchedules) {
         const eventId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-        const event: DaylogEvent = {
+        const event: MaChimEvent = {
           id: eventId,
           title: schedule.title,
           date: schedule.date,

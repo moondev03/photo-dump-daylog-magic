@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { CalendarPlus, Calendar } from "lucide-react";
@@ -12,7 +11,7 @@ const Index = () => {
           {/* Logo/Brand */}
           <div className="mb-8">
             <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-peach to-sunset bg-clip-text text-transparent mb-4">
-              Daylog
+              MaChim - 마침
             </h1>
             <div className="w-24 h-1 bg-gradient-peach mx-auto rounded-full"></div>
           </div>

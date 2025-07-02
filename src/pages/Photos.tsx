@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Upload, X, ArrowRight } from "lucide-react";
 import { storage } from "@/utils/storage";
-import { DaylogEvent, UploadedPhoto } from "@/types";
+import { MaChimEvent, UploadedPhoto } from "@/types";
 
 const Photos = () => {
   const [searchParams] = useSearchParams();
@@ -13,8 +13,8 @@ const Photos = () => {
   const eventId = searchParams.get('eventId');
   const selectedDate = searchParams.get('date');
   
-  const [event, setEvent] = useState<DaylogEvent | null>(null);
-  const [dateEvents, setDateEvents] = useState<DaylogEvent[]>([]);
+  const [event, setEvent] = useState<MaChimEvent | null>(null);
+  const [dateEvents, setDateEvents] = useState<MaChimEvent[]>([]);
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [dragOver, setDragOver] = useState(false);
 
@@ -201,8 +201,6 @@ const Photos = () => {
   const proceedToStyle = () => {
     if (photos.length === 0) {
       toast({
-        title: "사진을 선택해주세요",
-        description: "포토 덤프 생성을 위해 최소 1장의 사진이 필요합니다.",
         variant: "destructive"
       });
       return;
@@ -234,7 +232,7 @@ const Photos = () => {
         const tempEventId = `date-${selectedDate}-${Date.now()}`;
         const eventTitles = dateEvents.map(event => event.title).join(", ");
         
-        const tempEvent: DaylogEvent = {
+        const tempEvent: MaChimEvent = {
           id: tempEventId,
           title: `${selectedDate}의 추억 (${eventTitles})`,
           date: selectedDate,

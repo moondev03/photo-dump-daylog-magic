@@ -4,13 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Calendar as CalendarIcon, ArrowLeft, ArrowRight, Trash2, Camera } from "lucide-react";
 import { storage } from "@/utils/storage";
-import { DaylogEvent } from "@/types";
+import { MaChimEvent } from "@/types";
 
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [schedules, setSchedules] = useState<DaylogEvent[]>([]);
+  const [schedules, setSchedules] = useState<MaChimEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>("");
-  const [selectedSchedules, setSelectedSchedules] = useState<DaylogEvent[]>([]);
+  const [selectedSchedules, setSelectedSchedules] = useState<MaChimEvent[]>([]);
 
   useEffect(() => {
     loadSchedules();

@@ -1,4 +1,4 @@
-export interface DaylogEvent {
+export interface MaChimEvent {
   id: string;
   title: string;
   date: string; // YYYY-MM-DD format

@@ -1,23 +1,23 @@
-import { DaylogEvent, PhotoDump } from '@/types';
+import { MaChimEvent, PhotoDump } from '@/types';
 
 const STORAGE_KEYS = {
-  SCHEDULES: 'daylog.schedules',
-  PHOTOS: 'daylog.photos',
-  DUMPS: 'daylog.dumps'
+  SCHEDULES: 'machim.schedules',
+  PHOTOS: 'machim.photos',
+  DUMPS: 'machim.dumps'
 } as const;
 
 export const storage = {
   // Schedule operations
-  getSchedules: (): DaylogEvent[] => {
-    const stored = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
-    return stored ? JSON.parse(stored) : [];
+  getSchedules: (): MaChimEvent[] => {
+    const schedules = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
+    return schedules ? JSON.parse(schedules) : [];
   },
 
-  saveSchedules: (schedules: DaylogEvent[]): void => {
+  saveSchedules: (schedules: MaChimEvent[]): void => {
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
   },
 
-  addSchedule: (schedule: DaylogEvent): void => {
+  addSchedule: (schedule: MaChimEvent): void => {
     const schedules = storage.getSchedules();
     schedules.push(schedule);
     storage.saveSchedules(schedules);
@@ -28,7 +28,7 @@ export const storage = {
     storage.saveSchedules(schedules);
   },
 
-  getScheduleById: (id: string): DaylogEvent | undefined => {
+  getScheduleById: (id: string): MaChimEvent | undefined => {
     return storage.getSchedules().find(s => s.id === id);
   },
 

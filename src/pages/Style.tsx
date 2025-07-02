@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { storage } from "@/utils/storage";
-import { DaylogEvent } from "@/types";
+import { MaChimEvent } from "@/types";
 import { toast } from "@/hooks/use-toast";
 
 type LayoutType = 'grid4' | 'grid6' | 'grid8' | 'grid9';
@@ -15,7 +15,7 @@ const Style = () => {
   const eventId = searchParams.get('eventId');
   const selectedDate = searchParams.get('date');
   
-  const [event, setEvent] = useState<DaylogEvent | null>(null);
+  const [event, setEvent] = useState<MaChimEvent | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
   const [selectedLayout, setSelectedLayout] = useState<LayoutType>('grid4');
@@ -94,7 +94,7 @@ const Style = () => {
           return;
         }
 
-        let currentEvent: DaylogEvent | null = null;
+        let currentEvent: MaChimEvent | null = null;
         let eventPhotos: string[] = [];
 
         // 날짜 기반 임시 이벤트인 경우 sessionStorage에서 불러오기
@@ -110,7 +110,7 @@ const Style = () => {
             return;
           }
 
-          currentEvent = JSON.parse(tempEvent) as DaylogEvent;
+          currentEvent = JSON.parse(tempEvent) as MaChimEvent;
           eventPhotos = currentEvent.photos || [];
         } else {
           // 일반 일정인 경우 storage에서 불러오기

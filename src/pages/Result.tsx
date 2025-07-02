@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Download, Share2, Calendar } from "lucide-react";
 import { storage } from "@/utils/storage";
-import { DaylogEvent, PhotoDump } from "@/types";
+import { MaChimEvent, PhotoDump } from "@/types";
 
 const Result = () => {
   const [searchParams] = useSearchParams();
@@ -14,7 +14,7 @@ const Result = () => {
   const dumpRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   
-  const [event, setEvent] = useState<DaylogEvent | null>(null);
+  const [event, setEvent] = useState<MaChimEvent | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [dump, setDump] = useState<PhotoDump | null>(null);
 
@@ -47,7 +47,7 @@ const Result = () => {
               return;
             }
 
-            const parsedEvent = JSON.parse(tempEvent) as DaylogEvent;
+            const parsedEvent = JSON.parse(tempEvent) as MaChimEvent;
             const parsedDump = JSON.parse(tempDump) as PhotoDump;
             
             setEvent(parsedEvent);
