@@ -6,6 +6,9 @@ import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { storage } from "@/utils/storage";
 import { MaChimEvent } from "@/types";
 import { toast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 type LayoutType = 'grid4' | 'grid6' | 'grid8' | 'grid9';
 
@@ -24,6 +27,9 @@ const Style = () => {
   const [dumpMemo, setDumpMemo] = useState('');
   const [showTitle, setShowTitle] = useState(true);
   const [showMemo, setShowMemo] = useState(true);
+  const [showFrame, setShowFrame] = useState(true);
+  const [imageGap, setImageGap] = useState(12);
+  const [imageRadius, setImageRadius] = useState(16);
 
   // Get required photo count based on layout
   const getRequiredPhotoCount = (layout: LayoutType) => {
@@ -184,6 +190,73 @@ const Style = () => {
     }
   };
 
+  const handleFrameToggle = (show: boolean) => {
+    setShowFrame(show);
+    if (!show) {
+      setShowTitle(false);
+      setShowMemo(false);
+    }
+  };
+
+  const renderPreview = () => {
+    if (!event) return null;
+
+    const containerStyle = {
+      backgroundColor: showFrame ? selectedBgColor : 'transparent',
+      fontFamily: 'Inter',
+      padding: showFrame ? '2rem' : '0',
+      boxShadow: showFrame ? 'var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)' : 'none',
+      borderRadius: showFrame ? '1rem' : '0'
+    };
+
+    const getLayoutClass = () => {
+      switch (selectedLayout) {
+        case 'grid4': return 'grid grid-cols-2 gap-3';
+        case 'grid6': return 'grid grid-cols-2 gap-3';
+        case 'grid8': return 'grid grid-cols-2 gap-3';
+        case 'grid9': return 'grid grid-cols-3 gap-3';
+        default: return 'grid grid-cols-2 gap-3';
+      }
+    };
+
+    return (
+      <div className="w-full" style={containerStyle}>
+        {showFrame && showTitle && dumpTitle && (
+          <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
+            {dumpTitle}
+          </h1>
+        )}
+
+        <div className={getLayoutClass()} style={{ gap: `${imageGap}px` }}>
+          {selectedPhotos.map((photo, index) => (
+            <div 
+              key={index} 
+              className="aspect-square overflow-hidden"
+              style={{ 
+                borderRadius: `${imageRadius}px`,
+                boxShadow: showFrame ? '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' : 'none'
+              }}
+            >
+              <img
+                src={photo}
+                alt={`Photo ${index + 1}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
+
+        {showFrame && showMemo && dumpMemo && (
+          <div className="border-t border-gray-200 mt-8 pt-6 text-gray-700">
+            <p className="text-center text-lg italic leading-relaxed">
+              "{dumpMemo}"
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const createPhotoDump = () => {
     try {
       if (!eventId || !event) {
@@ -212,10 +285,13 @@ const Style = () => {
         memo: showMemo ? dumpMemo : '',
         showTitle,
         showMemo,
+        showFrame,
         style: {
           layout: selectedLayout,
           backgroundColor: selectedBgColor,
-          fontFamily: 'Inter'
+          fontFamily: 'Inter',
+          imageGap,
+          imageRadius
         },
         photos: selectedPhotos,
         createdAt: new Date().toISOString()
@@ -243,55 +319,6 @@ const Style = () => {
         variant: "destructive"
       });
     }
-  };
-
-  const renderPreview = () => {
-    if (!event) return null;
-
-    const containerStyle = {
-      backgroundColor: selectedBgColor,
-      fontFamily: 'Inter'
-    };
-
-    const getLayoutClass = () => {
-      switch (selectedLayout) {
-        case 'grid4': return 'grid grid-cols-2 gap-3';
-        case 'grid6': return 'grid grid-cols-2 gap-3';
-        case 'grid8': return 'grid grid-cols-2 gap-3';
-        case 'grid9': return 'grid grid-cols-3 gap-3';
-        default: return 'grid grid-cols-2 gap-3';
-      }
-    };
-
-    return (
-      <div className="w-full rounded-2xl p-8 shadow-lg" style={containerStyle}>
-        {showTitle && dumpTitle && (
-          <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
-            {dumpTitle}
-          </h1>
-        )}
-
-        <div className={getLayoutClass()}>
-          {selectedPhotos.map((photo, index) => (
-            <div key={index} className="aspect-square rounded-xl overflow-hidden bg-muted">
-              <img
-                src={photo}
-                alt={`Photo ${index + 1}`}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ))}
-        </div>
-
-        {showMemo && dumpMemo && (
-          <div className="border-t border-gray-200 mt-8 pt-6 text-gray-700">
-            <p className="text-center text-lg italic leading-relaxed">
-              "{dumpMemo}"
-            </p>
-          </div>
-        )}
-      </div>
-    );
   };
 
   if (!event) {
@@ -331,6 +358,156 @@ const Style = () => {
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-8">
           {/* Left Column - Settings */}
           <div className="space-y-6">
+            {/* Frame Toggle */}
+            <Card className="glass-effect border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl">🖼️ 프레임 설정</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">프레임 표시</p>
+                    <p className="text-sm text-muted-foreground">
+                      프레임을 끄면 제목과 메모도 함께 숨겨집니다
+                    </p>
+                  </div>
+                  <Switch
+                    checked={showFrame}
+                    onCheckedChange={handleFrameToggle}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Title & Memo Controls - Only show when frame is on */}
+            {showFrame && (
+              <Card className="glass-effect border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl">✏️ 텍스트 설정</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">제목 표시</p>
+                      <p className="text-sm text-muted-foreground">
+                        포토 덤프 상단에 제목을 표시합니다
+                      </p>
+                    </div>
+                    <Switch
+                      checked={showTitle}
+                      onCheckedChange={setShowTitle}
+                    />
+                  </div>
+
+                  {showTitle && (
+                    <Input
+                      placeholder="포토 덤프 제목을 입력하세요"
+                      value={dumpTitle}
+                      onChange={(e) => setDumpTitle(e.target.value)}
+                      className="mt-2"
+                    />
+                  )}
+
+                  <div className="flex items-center justify-between pt-4">
+                    <div>
+                      <p className="font-medium">메모 표시</p>
+                      <p className="text-sm text-muted-foreground">
+                        포토 덤프 하단에 메모를 표시합니다
+                      </p>
+                    </div>
+                    <Switch
+                      checked={showMemo}
+                      onCheckedChange={setShowMemo}
+                    />
+                  </div>
+
+                  {showMemo && (
+                    <Textarea
+                      placeholder="메모를 입력하세요"
+                      value={dumpMemo}
+                      onChange={(e) => setDumpMemo(e.target.value)}
+                      className="mt-2"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Background Color - Only show when frame is on */}
+            {showFrame && (
+              <Card className="glass-effect border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl">🎨 배경색 설정</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Button
+                      variant={selectedBgColor === '#fefefe' ? 'default' : 'outline'}
+                      className="h-20 rounded-xl border-2"
+                      style={{ backgroundColor: '#fefefe' }}
+                      onClick={() => setSelectedBgColor('#fefefe')}
+                    >
+                      화이트
+                    </Button>
+                    <Button
+                      variant={selectedBgColor === '#f8f8f8' ? 'default' : 'outline'}
+                      className="h-20 rounded-xl border-2"
+                      style={{ backgroundColor: '#f8f8f8' }}
+                      onClick={() => setSelectedBgColor('#f8f8f8')}
+                    >
+                      라이트 그레이
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Image Style Controls */}
+            <Card className="glass-effect border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl">🎨 이미지 스타일</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Image Gap Control */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <label className="text-sm font-medium">이미지 간격</label>
+                    <span className="text-sm text-muted-foreground">{imageGap}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="32"
+                    value={imageGap}
+                    onChange={(e) => setImageGap(Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    이미지 사이의 간격을 조절합니다
+                  </p>
+                </div>
+
+                {/* Image Radius Control */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <label className="text-sm font-medium">모서리 둥글기</label>
+                    <span className="text-sm text-muted-foreground">{imageRadius}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="32"
+                    value={imageRadius}
+                    onChange={(e) => setImageRadius(Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    이미지 모서리의 둥글기를 조절합니다
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Layout Selection */}
             <Card className="glass-effect border-0 shadow-lg">
               <CardHeader>
@@ -393,91 +570,6 @@ const Style = () => {
                       </div>
                     </button>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Background Color */}
-            <Card className="glass-effect border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-xl">🎨 배경색 선택</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                  {[
-                    { name: '화이트', color: '#fefefe' },
-                    { name: '크림', color: '#fef7ed' },
-                    { name: '베이지', color: '#f5f5dc' },
-                    { name: '라이트 그레이', color: '#f8f9fa' },
-                    { name: '웜 화이트', color: '#fffcf7' },
-                    { name: '소프트 핑크', color: '#fef2f2' }
-                  ].map(bg => (
-                    <button
-                      key={bg.color}
-                      onClick={() => setSelectedBgColor(bg.color)}
-                      className={`p-4 rounded-xl border-2 transition-all duration-200
-                        ${selectedBgColor === bg.color 
-                          ? 'border-peach' 
-                          : 'border-border hover:border-peach/50'
-                        }`}
-                      style={{ backgroundColor: bg.color }}
-                    >
-                      <div className="text-center text-sm font-medium">
-                        {bg.name}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Title and Memo Settings */}
-            <Card className="glass-effect border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-xl">✍️ 제목과 메모</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium">제목 표시</label>
-                    <Button
-                      variant={showTitle ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowTitle(!showTitle)}
-                    >
-                      {showTitle ? "표시" : "숨김"}
-                    </Button>
-                  </div>
-                  {showTitle && (
-                    <input
-                      type="text"
-                      value={dumpTitle}
-                      onChange={(e) => setDumpTitle(e.target.value)}
-                      placeholder="제목을 입력하세요"
-                      className="w-full px-3 py-2 rounded-lg border border-border bg-background"
-                    />
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium">메모 표시</label>
-                    <Button
-                      variant={showMemo ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowMemo(!showMemo)}
-                    >
-                      {showMemo ? "표시" : "숨김"}
-                    </Button>
-                  </div>
-                  {showMemo && (
-                    <textarea
-                      value={dumpMemo}
-                      onChange={(e) => setDumpMemo(e.target.value)}
-                      placeholder="메모를 입력하세요"
-                      className="w-full px-3 py-2 rounded-lg border border-border bg-background h-24 resize-none"
-                    />
-                  )}
                 </div>
               </CardContent>
             </Card>

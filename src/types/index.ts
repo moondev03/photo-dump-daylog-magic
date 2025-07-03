@@ -15,10 +15,13 @@ export interface PhotoDump {
   memo: string;
   showTitle: boolean;
   showMemo: boolean;
+  showFrame: boolean;
   style: {
     layout: 'grid4' | 'grid6' | 'grid8' | 'grid9';
     backgroundColor: string;
     fontFamily: string;
+    imageGap: number;
+    imageRadius: number;
   };
   photos: string[];
   createdAt: string;

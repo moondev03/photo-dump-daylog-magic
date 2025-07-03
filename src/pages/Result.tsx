@@ -206,21 +206,27 @@ const Result = () => {
     if (!dump) return null;
 
     const getLayoutClass = () => {
-      switch (dump.style.layout) {
-        case 'grid4': return 'grid grid-cols-2 gap-3';
-        case 'grid6': return 'grid grid-cols-2 gap-3';
-        case 'grid8': return 'grid grid-cols-2 gap-3';
-        case 'grid9': return 'grid grid-cols-3 gap-3';
-        default: return 'grid grid-cols-2 gap-3';
-      }
+      const baseClass = 'grid';
+      const colsClass = {
+        'grid4': 'grid-cols-2',
+        'grid6': 'grid-cols-2',
+        'grid8': 'grid-cols-2',
+        'grid9': 'grid-cols-3'
+      }[dump.style.layout] || 'grid-cols-2';
+      
+      return `${baseClass} ${colsClass}`;
     };
 
     return (
-      <div className={getLayoutClass()}>
+      <div className={getLayoutClass()} style={{ gap: `${dump.style.imageGap}px` }}>
         {dump.photos.map((photo, index) => (
           <div 
             key={index} 
-            className="aspect-square rounded-2xl overflow-hidden shadow-lg"
+            className="aspect-square overflow-hidden"
+            style={{ 
+              borderRadius: `${dump.style.imageRadius}px`,
+              boxShadow: dump.showFrame ? '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' : 'none'
+            }}
           >
             <img
               src={photo}
@@ -237,26 +243,26 @@ const Result = () => {
     if (!event || !dump || dump.photos.length === 0) return null;
 
     const containerStyle = {
-      backgroundColor: dump.style.backgroundColor,
-      fontFamily: dump.style.fontFamily
+      backgroundColor: dump.showFrame ? dump.style.backgroundColor : 'transparent',
+      fontFamily: dump.style.fontFamily,
+      padding: dump.showFrame ? '2rem' : '0',
+      boxShadow: dump.showFrame ? 'var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)' : 'none',
+      borderRadius: dump.showFrame ? '1rem' : '0'
     };
 
     return (
-      <div className="w-full rounded-2xl p-8 shadow-lg" style={containerStyle} ref={dumpRef}>
-        {/* Title - only show if enabled and exists */}
-        {dump.showTitle && dump.title && (
+      <div className="w-full" style={containerStyle} ref={dumpRef}>
+        {dump.showFrame && dump.showTitle && dump.title && (
           <h1 className="text-3xl md:text-4xl font-bold text-center mb-8 text-gray-800">
             {dump.title}
           </h1>
         )}
 
-        {/* Photos */}
         <div className="mb-8">
           {renderPhotos()}
         </div>
 
-        {/* Memo - only show if enabled and exists */}
-        {dump.showMemo && dump.memo && (
+        {dump.showFrame && dump.showMemo && dump.memo && (
           <div className="border-t border-gray-200 pt-6 text-gray-700">
             <p className="text-center text-lg italic leading-relaxed">
               "{dump.memo}"
@@ -264,10 +270,11 @@ const Result = () => {
           </div>
         )}
 
-        {/* Minimal footer */}
-        <div className="text-center text-gray-400 mt-8 text-xs">
-          <p>{new Date(dump.createdAt).toLocaleDateString('ko-KR')}</p>
-        </div>
+        {dump.showFrame && (
+          <div className="text-center text-gray-400 mt-8 text-xs">
+            <p>{new Date(dump.createdAt).toLocaleDateString('ko-KR')}</p>
+          </div>
+        )}
       </div>
     );
   };
