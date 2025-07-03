@@ -10,6 +10,7 @@ import Photos from "./pages/Photos";
 import Style from "./pages/Style";
 import Result from "./pages/Result";
 import NotFound from "./pages/NotFound";
+import Gallery from "./pages/Gallery";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/photos" element={<Photos />} />
           <Route path="/style" element={<Style />} />
           <Route path="/result" element={<Result />} />
+          <Route path="/gallery" element={<Gallery />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

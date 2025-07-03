@@ -370,6 +370,11 @@ const Calendar = () => {
                     ➕ 새 일정 등록
                   </Button>
                 </Link>
+                <Link to="/gallery">
+                  <Button variant="outline" className="w-full border-2 border-sunset text-sunset hover:bg-sunset hover:text-white">
+                    📸 포토 덤프 갤러리
+                  </Button>
+                </Link>
                 <Link to="/">
                   <Button variant="outline" className="w-full">
                     🏠 홈으로 돌아가기
