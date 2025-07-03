@@ -5,12 +5,14 @@ import { Link } from "react-router-dom";
 import { Calendar as CalendarIcon, ArrowLeft, ArrowRight, Trash2, Camera } from "lucide-react";
 import { storage } from "@/utils/storage";
 import { MaChimEvent } from "@/types";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [schedules, setSchedules] = useState<MaChimEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedSchedules, setSelectedSchedules] = useState<MaChimEvent[]>([]);
+  const [selectedSchedule, setSelectedSchedule] = useState<MaChimEvent | null>(null);
 
   // 캐시된 월별 일정
   const monthSchedules = useMemo(() => {
@@ -66,6 +68,11 @@ const Calendar = () => {
     setSelectedSchedules(getSchedulesForDate(day));
   };
 
+  // 일정 상세 정보 모달 닫기
+  const closeScheduleDetail = () => {
+    setSelectedSchedule(null);
+  };
+
   // 일정 삭제 함수 개선
   const deleteSchedule = async (id: string) => {
     try {
@@ -76,6 +83,7 @@ const Calendar = () => {
         const dateSchedules = stored.filter(s => s.date === selectedDate);
         setSelectedSchedules(dateSchedules);
       }
+      setSelectedSchedule(null); // 삭제 후 모달 닫기
     } catch (error) {
       console.error('Delete schedule error:', error);
     }
@@ -282,7 +290,7 @@ const Calendar = () => {
             </Card>
           </div>
 
-          {/* Selected Date Details */}
+          {/* Schedule List */}
           <div className="space-y-6">
             {selectedDate ? (
               <>
@@ -302,40 +310,39 @@ const Calendar = () => {
                       <p className="text-muted-foreground">이 날에는 등록된 일정이 없습니다.</p>
                     ) : (
                       <div className="space-y-4">
-                        {selectedSchedules.map(schedule => (
-                          <Card key={schedule.id} className="border border-border/50">
-                            <CardContent className="p-4">
-                              <div className="flex items-start justify-between mb-2">
-                                <h4 className="font-semibold text-lg">{schedule.title}</h4>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => deleteSchedule(schedule.id)}
-                                  className="text-destructive hover:text-destructive p-1"
+                        {selectedSchedules.map((schedule) => (
+                          <div
+                            key={schedule.id}
+                            className="p-4 rounded-lg bg-card/50 hover:bg-card/80 transition-colors cursor-pointer"
+                            onClick={() => setSelectedSchedule(schedule)}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h3 className="font-medium mb-1">{schedule.title}</h3>
+                                {(schedule.startTime || schedule.endTime) && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {schedule.startTime?.substring(0, 5)}
+                                    {schedule.endTime && ` - ${schedule.endTime.substring(0, 5)}`}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {storage.getPhotos(schedule.id)?.length > 0 && (
+                                  <Camera className="h-4 w-4 text-muted-foreground" />
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteSchedule(schedule.id);
+                                  }}
+                                  className="text-destructive hover:text-destructive/80 transition-colors"
                                 >
                                   <Trash2 className="h-4 w-4" />
-                                </Button>
+                                </button>
                               </div>
-                              
-                              {(schedule.startTime || schedule.endTime) && (
-                                <p className="text-sm text-muted-foreground mb-2">
-                                  {schedule.startTime && `${schedule.startTime}`}
-                                  {schedule.startTime && schedule.endTime && ' - '}
-                                  {schedule.endTime && `${schedule.endTime}`}
-                                </p>
-                              )}
-                              
-                              {schedule.memo && (
-                                <p className="text-sm text-muted-foreground mb-3">
-                                  {schedule.memo}
-                                </p>
-                              )}
-                            </CardContent>
-                          </Card>
+                            </div>
+                          </div>
                         ))}
-                        
-                        {/* 날짜별 포토 덤프 버튼 */}
-                        {renderPhotoDumpButton(selectedDate)}
                       </div>
                     )}
                   </CardContent>
@@ -373,6 +380,99 @@ const Calendar = () => {
           </div>
         </div>
       </div>
+
+      {/* Schedule Detail Dialog */}
+      {selectedSchedule && (
+        <Dialog open={!!selectedSchedule} onOpenChange={() => closeScheduleDetail()}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">
+                {selectedSchedule.title}
+              </DialogTitle>
+              <DialogDescription>
+                {new Date(selectedSchedule.date).toLocaleDateString('ko-KR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  weekday: 'long'
+                })}
+                {(selectedSchedule.startTime || selectedSchedule.endTime) && (
+                  <div className="mt-1 text-sm">
+                    {selectedSchedule.startTime?.substring(0, 5)}
+                    {selectedSchedule.endTime && ` - ${selectedSchedule.endTime.substring(0, 5)}`}
+                  </div>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+
+            {selectedSchedule.memo && (
+              <div className="mt-4">
+                <h4 className="font-medium mb-2">메모</h4>
+                <p className="text-sm text-muted-foreground">{selectedSchedule.memo}</p>
+              </div>
+            )}
+
+            <div className="mt-6">
+              <h4 className="font-medium mb-2">포토 덤프 상태</h4>
+              {(() => {
+                const photos = storage.getPhotos(selectedSchedule.id);
+                const dump = storage.getDump(selectedSchedule.id);
+                
+                if (dump) {
+                  return (
+                    <Link to={`/result?eventId=${selectedSchedule.id}`}>
+                      <Button 
+                        className="w-full gradient-peach text-white border-0"
+                      >
+                        포토 덤프 보기
+                      </Button>
+                    </Link>
+                  );
+                }
+                
+                if (photos && photos.length > 0) {
+                  return (
+                    <Link to={`/style?eventId=${selectedSchedule.id}`}>
+                      <Button 
+                        variant="outline"
+                        className="w-full border-peach text-peach hover:bg-peach hover:text-white"
+                      >
+                        포토 덤프 만들기
+                      </Button>
+                    </Link>
+                  );
+                }
+                
+                return (
+                  <Link to={`/photos?eventId=${selectedSchedule.id}`}>
+                    <Button 
+                      variant="outline"
+                      className="w-full"
+                    >
+                      사진 업로드
+                    </Button>
+                  </Link>
+                );
+              })()}
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button
+                variant="destructive"
+                onClick={() => deleteSchedule(selectedSchedule.id)}
+              >
+                일정 삭제
+              </Button>
+              <Button
+                variant="outline"
+                onClick={closeScheduleDetail}
+              >
+                닫기
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
