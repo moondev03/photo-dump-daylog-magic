@@ -1,0 +1,41 @@
+name: "🐞 버그 제보"
+description: "발견한 버그를 보고합니다."
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: "버그 설명"
+      description: "어떤 문제가 발생했는지 구체적으로 작성해주세요."
+      placeholder: "예: 로그인 시도 시 앱이 종료됩니다."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "재현 방법"
+      description: "버그를 재현하는 단계별 절차를 작성해주세요."
+      placeholder: |
+        1. 앱 실행
+        2. 로그인 버튼 클릭
+        3. 앱이 종료됨
+    validations:
+      required: false
+
+  - type: input
+    id: environment
+    attributes:
+      label: "환경 정보"
+      description: "운영체제, 브라우저, 디바이스 등 (선택사항)"
+      placeholder: "예: Android 14, Chrome 125"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "체크리스트"
+      options:
+        - label: "유사한 이슈가 없는지 검색했습니다."
+          required: true

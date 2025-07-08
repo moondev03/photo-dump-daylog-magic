@@ -1,0 +1,29 @@
+name: "📄 문서 개선 요청"
+description: "문서에 대한 오류나 개선점을 제안합니다."
+title: "[Docs] "
+labels:
+  - documentation
+body:
+  - type: textarea
+    id: location
+    attributes:
+      label: "문서 위치"
+      description: "문제가 있는 문서의 위치나 파일명을 작성해주세요."
+      placeholder: "예: README.md 또는 docs/setup-guide.md"
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: "개선 사항"
+      description: "어떤 내용을 어떻게 수정하면 좋을지 작성해주세요."
+      placeholder: "예: 설치 순서가 누락되어 있어 혼란을 겪었습니다."
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "체크리스트"
+      options:
+        - label: "해당 문서의 최신 버전을 기준으로 작성했습니다."
+          required: true
